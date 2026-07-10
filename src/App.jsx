@@ -48,12 +48,29 @@ const POB_COLOR = {
 /* cobertura geográfica: provincia -> ciudades/barrios. "zona" en los datos sigue
    siendo el nombre de ciudad/barrio, para no romper el filtrado existente. */
 const PROVINCIAS = {
-  "Buenos Aires (CABA y GBA)": ["Palermo", "Recoleta", "Caballito", "Belgrano", "San Telmo", "Villa Urquiza", "Flores", "San Isidro", "Vicente López", "La Plata"],
+  "Buenos Aires (CABA, GBA e interior)": ["Palermo", "Recoleta", "Caballito", "Belgrano", "San Telmo", "Villa Urquiza", "Flores", "San Isidro", "Vicente López", "La Plata", "Mar del Plata", "Bahía Blanca"],
+  "Catamarca": ["San Fernando del Valle de Catamarca"],
+  "Chaco": ["Resistencia"],
+  "Chubut": ["Comodoro Rivadavia", "Trelew"],
   "Córdoba": ["Córdoba Capital", "Villa Carlos Paz", "Río Cuarto"],
-  "Santa Fe": ["Rosario", "Santa Fe Capital"],
+  "Corrientes": ["Corrientes Capital"],
+  "Entre Ríos": ["Paraná", "Concordia"],
+  "Formosa": ["Formosa Capital"],
+  "Jujuy": ["San Salvador de Jujuy"],
+  "La Pampa": ["Santa Rosa"],
+  "La Rioja": ["La Rioja Capital"],
   "Mendoza": ["Mendoza Capital", "Godoy Cruz"],
-  "Tucumán": ["San Miguel de Tucumán", "Yerba Buena"],
+  "Misiones": ["Posadas", "Puerto Iguazú"],
   "Neuquén": ["Neuquén Capital", "Plottier"],
+  "Río Negro": ["Bariloche", "Viedma"],
+  "Salta": ["Salta Capital"],
+  "San Juan": ["San Juan Capital"],
+  "San Luis": ["San Luis Capital"],
+  "Santa Cruz": ["Río Gallegos"],
+  "Santa Fe": ["Rosario", "Santa Fe Capital"],
+  "Santiago del Estero": ["Santiago del Estero Capital"],
+  "Tierra del Fuego": ["Ushuaia", "Río Grande"],
+  "Tucumán": ["San Miguel de Tucumán", "Yerba Buena"],
 };
 const ZONAS = Object.values(PROVINCIAS).flat();
 const PROVINCIA_DE = Object.fromEntries(
@@ -63,6 +80,10 @@ const PROVINCIA_DE = Object.fromEntries(
    sin necesitar coordenadas geográficas reales */
 const DIST_PROVINCIA_KM = {
   "Córdoba": 700, "Santa Fe": 300, "Mendoza": 1050, "Tucumán": 1240, "Neuquén": 1150,
+  "Catamarca": 1150, "Chaco": 1000, "Chubut": 1780, "Corrientes": 880, "Entre Ríos": 470,
+  "Formosa": 1170, "Jujuy": 1600, "La Pampa": 600, "La Rioja": 1150, "Misiones": 1030,
+  "Río Negro": 1630, "Salta": 1490, "San Juan": 1140, "San Luis": 800, "Santa Cruz": 2600,
+  "Santiago del Estero": 1040, "Tierra del Fuego": 3050,
 };
 const ZonaOptions = () => (
   <>
@@ -205,9 +226,9 @@ export default function RondaApp() {
   const avisar = (t) => { setToast(t); setTimeout(() => setToast(null), 2400); };
 
   /* registro AT */
-  const [regAT, setRegAT] = useState({ nombre: "", provincia: "Buenos Aires (CABA y GBA)", zona: "Palermo", poblaciones: [], areas: [], exp: "1 a 3 años", cert: false });
+  const [regAT, setRegAT] = useState({ nombre: "", provincia: "Buenos Aires (CABA, GBA e interior)", zona: "Palermo", poblaciones: [], areas: [], exp: "1 a 3 años", cert: false });
   /* registro familia */
-  const [regFam, setRegFam] = useState({ nombre: "", provincia: "Buenos Aires (CABA y GBA)", zona: "Palermo", para: "Mi hijo/a", poblacion: "Niñez", edad: "", areas: [], horario: "Tardes" });
+  const [regFam, setRegFam] = useState({ nombre: "", provincia: "Buenos Aires (CABA, GBA e interior)", zona: "Palermo", para: "Mi hijo/a", poblacion: "Niñez", edad: "", areas: [], horario: "Tardes" });
 
   /* estado app AT */
   const [tab, setTab] = useState("salidas");
@@ -634,29 +655,39 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
      agrupadas por ciudad dentro de un esquema que sigue, a grandes rasgos,
      la posición relativa real de cada provincia dentro del país */
   const COORDS = {
-    "San Miguel de Tucumán": [235, 35], "Yerba Buena": [222, 45],
-    "Rosario": [275, 140], "Santa Fe Capital": [255, 115],
-    "Córdoba Capital": [195, 195], "Villa Carlos Paz": [178, 190], "Río Cuarto": [205, 225],
-    "Mendoza Capital": [85, 230], "Godoy Cruz": [95, 245],
-    "Palermo": [300, 265], "Recoleta": [325, 275], "Caballito": [285, 295], "Belgrano": [310, 245],
-    "San Telmo": [330, 300], "Villa Urquiza": [270, 280], "Flores": [275, 310],
-    "San Isidro": [305, 230], "Vicente López": [320, 235], "La Plata": [345, 330],
-    "Neuquén Capital": [140, 385], "Plottier": [150, 392],
+    "San Salvador de Jujuy": [185, 12], "Salta Capital": [200, 30],
+    "Formosa Capital": [290, 35], "Posadas": [350, 55], "Puerto Iguazú": [365, 40],
+    "Resistencia": [265, 60], "San Miguel de Tucumán": [210, 55], "Yerba Buena": [200, 65],
+    "San Fernando del Valle de Catamarca": [160, 80], "Santiago del Estero Capital": [235, 90],
+    "Corrientes Capital": [310, 100], "La Rioja Capital": [135, 115], "San Juan Capital": [100, 140],
+    "Córdoba Capital": [195, 172], "Villa Carlos Paz": [178, 168], "Río Cuarto": [205, 195],
+    "Rosario": [270, 135], "Santa Fe Capital": [255, 115], "Paraná": [300, 150], "Concordia": [320, 165],
+    "Mendoza Capital": [85, 210], "Godoy Cruz": [95, 222], "San Luis Capital": [130, 205],
+    "Santa Rosa": [175, 250],
+    "Palermo": [300, 245], "Recoleta": [320, 250], "Caballito": [285, 265], "Belgrano": [305, 225],
+    "San Telmo": [325, 270], "Villa Urquiza": [275, 255], "Flores": [280, 280],
+    "San Isidro": [300, 210], "Vicente López": [312, 215], "La Plata": [335, 300],
+    "Mar del Plata": [320, 335], "Bahía Blanca": [250, 310],
+    "Neuquén Capital": [150, 290], "Plottier": [160, 297], "Bariloche": [165, 325], "Viedma": [200, 335],
+    "Comodoro Rivadavia": [155, 372], "Trelew": [170, 362], "Río Gallegos": [140, 398],
+    "Ushuaia": [150, 412], "Río Grande": [165, 402],
   };
   const PROVINCIA_LABEL_POS = {
-    "Tucumán": [228, 18],
-    "Santa Fe": [265, 98],
-    "Córdoba": [195, 172],
-    "Mendoza": [90, 208],
-    "Buenos Aires (CABA y GBA)": [305, 208],
-    "Neuquén": [145, 363],
+    "Jujuy": [185, 5], "Salta": [205, 22], "Formosa": [290, 25], "Misiones": [352, 30],
+    "Chaco": [265, 48], "Tucumán": [205, 42], "Catamarca": [155, 65],
+    "Santiago del Estero": [230, 78], "Corrientes": [305, 85], "La Rioja": [128, 100],
+    "San Juan": [95, 125], "Córdoba": [190, 155], "Santa Fe": [255, 100], "Entre Ríos": [300, 135],
+    "Mendoza": [80, 190], "San Luis": [125, 190], "La Pampa": [170, 235],
+    "Buenos Aires (CABA, GBA e interior)": [300, 195],
+    "Neuquén": [145, 275], "Río Negro": [165, 310], "Chubut": [150, 355],
+    "Santa Cruz": [130, 385], "Tierra del Fuego": [145, 400],
   };
   const userPos = COORDS[regFam.zona] || COORDS["Palermo"];
   const distKm = (pos, zonaAT) => {
-    const provFam = PROVINCIA_DE[regFam.zona] || "Buenos Aires (CABA y GBA)";
-    const provAT = PROVINCIA_DE[zonaAT] || "Buenos Aires (CABA y GBA)";
+    const base = "Buenos Aires (CABA, GBA e interior)";
+    const provFam = PROVINCIA_DE[regFam.zona] || base;
+    const provAT = PROVINCIA_DE[zonaAT] || base;
     if (provFam !== provAT) {
-      const base = "Buenos Aires (CABA y GBA)";
       const kmFam = provFam === base ? 0 : (DIST_PROVINCIA_KM[provFam] || 500);
       const kmAT = provAT === base ? 0 : (DIST_PROVINCIA_KM[provAT] || 500);
       const total = kmFam === 0 ? kmAT : kmAT === 0 ? kmFam : kmFam + kmAT;
