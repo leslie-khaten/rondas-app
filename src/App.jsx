@@ -45,6 +45,9 @@ const LogoRondas = ({ size = 44 }) => (
   </svg>
 );
 
+export const RONDAS_BRAND = { VERDE, CORAL, NAVY, PAPEL, TINTA, GRIS, AMBAR };
+export { LogoRondas };
+
 const POB_COLOR = {
   "Niñez": "#F2A71B",
   "Adolescencia": "#8B6FC9",
@@ -389,7 +392,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
   /* ================================================================ */
 
   const Bienvenida = (
-    <div className="px-5 flex flex-col" style={{ minHeight: "100vh" }}>
+    <div className="px-5 flex flex-col" style={{ minHeight: "100%" }}>
       <div className="flex flex-col items-center text-center" style={{ paddingTop: 56 }}>
         <LogoRondas size={110} />
         <h1 className="rd-display mt-2" style={{ fontSize: 46, fontWeight: 800, letterSpacing: "-0.01em", lineHeight: 1, color: NAVY }}>rondas</h1>
@@ -1737,9 +1740,9 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
   const enDetalle = rol === "at" ? !!detalleId : atSel !== null;
 
   return (
-    <div className="rd-root min-h-screen" style={{ background: "#DBDDEF" }}>
+    <div className="rd-root" style={{ background: "#DBDDEF", height: "100%", width: "100%" }}>
       <style>{CSS}</style>
-      <div className="mx-auto max-w-md relative" style={{ background: PAPEL, minHeight: "100vh" }}>
+      <div className="mx-auto max-w-md relative" style={{ background: PAPEL, minHeight: "100%", height: "100%", overflowY: "auto" }}>
         {toast && (
           <div className="absolute left-1/2 z-20 px-4 py-2.5 rounded-full text-sm font-bold"
             style={{ top: 14, transform: "translateX(-50%)", background: TINTA, color: "#fff", whiteSpace: "nowrap" }}>
