@@ -30,9 +30,9 @@ const TINTA = "#242B54";
 const GRIS = "#767C9B";
 const AMBAR = "#F2A71B";
 
-/* logo oficial de la marca (public/logo-icon.png), fondo transparente */
+/* logo oficial de la marca (public/logo.png), archivo original sin editar */
 const LogoRondas = ({ size = 44 }) => (
-  <img src="/logo-icon.png" width={size} height={size} alt="Logo rondas" style={{ objectFit: "contain" }} />
+  <img src="/logo.png" width={size} height={size} alt="rondas — Red de acompañamiento terapéutico" style={{ objectFit: "contain" }} />
 );
 
 export const RONDAS_BRAND = { VERDE, CORAL, NAVY, PAPEL, TINTA, GRIS, AMBAR };
