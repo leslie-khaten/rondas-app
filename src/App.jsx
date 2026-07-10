@@ -248,6 +248,7 @@ export default function RondaApp() {
   const [verCud, setVerCud] = useState(false);
   const [vistaMapa, setVistaMapa] = useState(false);
   const [pinSel, setPinSel] = useState(null);
+  const [pinSelSalida, setPinSelSalida] = useState(null);
 
   /* --- salida en curso (tracking por sesión) --- */
   const [sesion, setSesion] = useState(null); // { titulo, at, inicioTs, finTs, checkins[], demo, finalizada }
@@ -1105,6 +1106,99 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
     </div>
   );
 
+  const pinPosSalida = (s, i) => {
+    const base = COORDS[s.zona] || [200, 200];
+    const prev = filtradas.slice(0, i).filter((x) => x.zona === s.zona).length;
+    return [base[0] + prev * 26, base[1] + prev * 14];
+  };
+
+  const MapaSalidas = (
+    <div className="px-4 pb-28">
+      <div className="-mx-4 px-5 pt-6 pb-5 mb-4"
+        style={{ background: NAVY, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}>
+        <h1 className="rd-display text-2xl" style={{ fontWeight: 800, color: "#fff" }}>Mapa de salidas</h1>
+        <p className="text-xs" style={{ color: "#B9BEDC" }}>Dónde se están coordinando actividades ahora mismo</p>
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto pb-3" style={{ scrollbarWidth: "none" }}>
+        <select value={fZona} onChange={(e) => setFZona(e.target.value)}
+          className="rd-input text-xs rounded-full px-3 py-2 font-semibold" style={{ width: "auto" }} aria-label="Filtrar por zona">
+          <option>Todas</option>
+          <ZonaOptions />
+        </select>
+        {["Todas", ...POBLACIONES].map((p) => (
+          <button key={p} onClick={() => setFPob(p)}
+            className="text-xs rounded-full px-3 py-2 font-semibold whitespace-nowrap"
+            style={fPob === p ? { background: NAVY, color: "#fff" } : { background: "#fff", color: TINTA, border: "1px solid #D8D6CB" }}>
+            {p}
+          </button>
+        ))}
+      </div>
+
+      {filtradas.length === 0 && (
+        <div className="rd-card rounded-2xl p-6 text-center mt-2">
+          <p className="rd-display font-bold">No hay salidas con esos filtros</p>
+          <p className="text-sm mt-1" style={{ color: GRIS }}>Probá otra zona o publicá la primera.</p>
+        </div>
+      )}
+
+      <div className="rd-card rounded-2xl overflow-hidden">
+        <svg viewBox="0 0 400 430" width="100%" role="img" aria-label="Mapa de salidas activas">
+          <rect width="400" height="430" fill="#EAEBF5" />
+          {[40, 80, 120, 160, 200, 240, 280, 320].map((x) => (
+            <line key={"v" + x} x1={x} y1="0" x2={x} y2="430" stroke="#DFE1F0" strokeWidth="1.5" />
+          ))}
+          {[40, 90, 140, 190, 240, 290, 340, 390].map((y) => (
+            <line key={"h" + y} x1="0" y1={y} x2="400" y2={y} stroke="#DFE1F0" strokeWidth="1.5" />
+          ))}
+          <line x1="0" y1="60" x2="340" y2="420" stroke="#D3D5E8" strokeWidth="5" />
+          <line x1="30" y1="0" x2="330" y2="430" stroke="#D3D5E8" strokeWidth="5" />
+          <path d="M355,0 L400,0 L400,430 L370,430 C360,300 358,150 355,0 Z" fill="#CBDDF5" />
+          <text x="385" y="215" fontSize="9" fill="#8FA3C9" transform="rotate(90 385 215)">Océano Atlántico</text>
+          <ellipse cx="195" cy="150" rx="40" ry="26" fill="#D6F0E7" />
+          <ellipse cx="300" cy="290" rx="30" ry="20" fill="#D6F0E7" />
+          <ellipse cx="90" cy="255" rx="24" ry="16" fill="#D6F0E7" />
+          {Object.entries(PROVINCIA_LABEL_POS).map(([prov, [x, y]]) => (
+            <text key={prov} x={x} y={y} fontSize="9" fontWeight="bold" fill="#9BA0BC" textAnchor="middle">{prov}</text>
+          ))}
+
+          {filtradas.map((s, i) => {
+            const [x, y] = pinPosSalida(s, i);
+            const c = POB_COLOR[s.poblacion];
+            const sel = pinSelSalida === i;
+            return (
+              <g key={s.id} onClick={() => setPinSelSalida(i)} style={{ cursor: "pointer" }}>
+                <path d={`M${x},${y + 12} L${x - 5},${y + 4} L${x + 5},${y + 4} Z`} fill={c} />
+                <circle cx={x} cy={y - 6} r={sel ? 15 : 13} fill={c} stroke="#fff" strokeWidth={sel ? 3 : 2} />
+                <circle cx={x} cy={y - 6} r="3" fill="#fff" />
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+
+      {pinSelSalida !== null && filtradas[pinSelSalida] ? (
+        <div className="rd-card rounded-2xl p-4 mt-3 flex items-center gap-3">
+          <div className="rounded-full flex-shrink-0" style={{ width: 10, height: 10, background: POB_COLOR[filtradas[pinSelSalida].poblacion] }} />
+          <div className="flex-1 min-w-0">
+            <p className="rd-display text-sm font-bold truncate">{filtradas[pinSelSalida].titulo}</p>
+            <p className="text-xs" style={{ color: GRIS }}>
+              {filtradas[pinSelSalida].zona} · {filtradas[pinSelSalida].fecha} · {filtradas[pinSelSalida].hora}
+            </p>
+          </div>
+          <button onClick={() => { setDetalleId(filtradas[pinSelSalida].id); setPinSelSalida(null); }}
+            className="text-xs font-bold px-3 py-2 rounded-full flex-shrink-0" style={{ background: CORAL, color: "#fff" }}>
+            Ver detalle
+          </button>
+        </div>
+      ) : (
+        <p className="text-xs text-center mt-3" style={{ color: "#9BA0BC" }}>
+          Tocá un pin para ver el detalle. Las ubicaciones son por zona, nunca exactas.
+        </p>
+      )}
+    </div>
+  );
+
   const Detalle = salida && (
     <div className="pb-28">
       <div className="px-4 pt-4 pb-3 flex items-center gap-3" style={{ background: POB_COLOR[salida.poblacion] + "14" }}>
@@ -1794,6 +1888,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
 
   const TABS_AT = [
     { id: "salidas", label: "Salidas", icon: CalendarDays },
+    { id: "mapa", label: "Mapa", icon: MapIcon },
     { id: "publicar", label: "Publicar", icon: PlusCircle },
     { id: "chats", label: "Chats", icon: MessageCircle },
     { id: "perfil", label: "Perfil", icon: User },
@@ -1817,6 +1912,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
     else if (verPlanes) contenido = Planes;
     else if (detalleId && salida) contenido = Detalle;
     else if (tab === "salidas") contenido = Feed;
+    else if (tab === "mapa") contenido = MapaSalidas;
     else if (tab === "publicar") contenido = Publicar;
     else if (tab === "chats") contenido = chatId && chatSalida ? ChatThread : ChatsList;
     else contenido = PerfilAT;
@@ -1858,7 +1954,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
               return (
                 <button key={t.id}
                   onClick={() => {
-                    if (rol === "at") { setTab(t.id); setDetalleId(null); setVerPlanes(false); setVerCud(false); setVerEnCurso(false); if (t.id !== "chats") setChatId(null); }
+                    if (rol === "at") { setTab(t.id); setDetalleId(null); setVerPlanes(false); setVerCud(false); setVerEnCurso(false); setPinSelSalida(null); if (t.id !== "chats") setChatId(null); }
                     else { setTabFam(t.id); setAtSel(null); setEscribiendo(false); setVerCud(false); setPinSel(null); }
                   }}
                   className="flex flex-col items-center gap-1 px-3 py-2" aria-label={t.label}>
