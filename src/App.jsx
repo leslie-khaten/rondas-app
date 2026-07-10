@@ -30,19 +30,9 @@ const TINTA = "#242B54";
 const GRIS = "#767C9B";
 const AMBAR = "#F2A71B";
 
-/* logo recreado en SVG con los colores de marca */
+/* logo oficial de la marca (public/logo-icon.png), fondo transparente */
 const LogoRondas = ({ size = 44 }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label="Logo rondas">
-    <g fill="none" strokeWidth="13" strokeLinecap="round">
-      <path d="M26.3,41.2 A28,28 0 0 1 73.7,41.2" stroke={AMBAR} />
-      <path d="M22.3,52.1 A28,28 0 0 0 47.1,83.9" stroke={VERDE} />
-      <path d="M77.7,52.1 A28,28 0 0 1 51,83.9" stroke="#8B6FC9" />
-    </g>
-    <circle cx="50" cy="21" r="8.5" fill={AMBAR} />
-    <circle cx="20.5" cy="46" r="8.5" fill={VERDE} />
-    <circle cx="79.5" cy="46" r="8.5" fill="#8B6FC9" />
-    <path d="M50,66 C40,58 38,50 44,46.5 C47.5,44.5 50,47.5 50,50 C50,47.5 52.5,44.5 56,46.5 C62,50 60,58 50,66 Z" fill={CORAL} />
-  </svg>
+  <img src="/logo-icon.png" width={size} height={size} alt="Logo rondas" style={{ objectFit: "contain" }} />
 );
 
 export const RONDAS_BRAND = { VERDE, CORAL, NAVY, PAPEL, TINTA, GRIS, AMBAR };
