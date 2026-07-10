@@ -304,7 +304,6 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <LogoRondas size={34} />
-            <span className="rd-display font-extrabold text-xl" style={{ color: NAVY }}>rondas</span>
           </div>
           <nav className="hidden lg:flex items-center gap-4 text-sm font-bold" style={{ color: "#4A4F72" }}>
             <a href="#que-es" onClick={scrollTo("que-es")}>Qué es</a>
@@ -650,7 +649,6 @@ export default function Landing() {
           <div>
             <div className="flex items-center gap-2.5 mb-3">
               <LogoRondas size={28} />
-              <span className="rd-display font-bold text-base" style={{ color: "#fff" }}>rondas</span>
             </div>
             <p className="text-xs leading-relaxed" style={{ color: "#8790B3" }}>Red de acompañamiento terapéutico. Prototipo de producto.</p>
           </div>

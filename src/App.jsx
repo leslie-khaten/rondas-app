@@ -45,7 +45,35 @@ const POB_COLOR = {
   "Adultos mayores": "#EF5A5A",
 };
 
-const ZONAS = ["Palermo", "Recoleta", "Caballito", "Belgrano", "San Telmo", "Villa Urquiza", "Flores"];
+/* cobertura geográfica: provincia -> ciudades/barrios. "zona" en los datos sigue
+   siendo el nombre de ciudad/barrio, para no romper el filtrado existente. */
+const PROVINCIAS = {
+  "Buenos Aires (CABA y GBA)": ["Palermo", "Recoleta", "Caballito", "Belgrano", "San Telmo", "Villa Urquiza", "Flores", "San Isidro", "Vicente López", "La Plata"],
+  "Córdoba": ["Córdoba Capital", "Villa Carlos Paz", "Río Cuarto"],
+  "Santa Fe": ["Rosario", "Santa Fe Capital"],
+  "Mendoza": ["Mendoza Capital", "Godoy Cruz"],
+  "Tucumán": ["San Miguel de Tucumán", "Yerba Buena"],
+  "Neuquén": ["Neuquén Capital", "Plottier"],
+};
+const ZONAS = Object.values(PROVINCIAS).flat();
+const PROVINCIA_DE = Object.fromEntries(
+  Object.entries(PROVINCIAS).flatMap(([prov, ciudades]) => ciudades.map((c) => [c, prov]))
+);
+/* distancias aproximadas (km) desde CABA, para comparar zonas de distinta provincia
+   sin necesitar coordenadas geográficas reales */
+const DIST_PROVINCIA_KM = {
+  "Córdoba": 700, "Santa Fe": 300, "Mendoza": 1050, "Tucumán": 1240, "Neuquén": 1150,
+};
+const ZonaOptions = () => (
+  <>
+    {Object.entries(PROVINCIAS).map(([prov, ciudades]) => (
+      <optgroup key={prov} label={prov}>
+        {ciudades.map((z) => <option key={z} value={z}>{z}</option>)}
+      </optgroup>
+    ))}
+  </>
+);
+
 const POBLACIONES = ["Niñez", "Adolescencia", "Adultos", "Adultos mayores"];
 const AREAS = ["TEA", "TDAH", "Salud mental", "Discapacidad motriz", "Deterioro cognitivo", "Integración escolar"];
 
@@ -80,6 +108,9 @@ const DIRECTORIO_ATS = [
   { nombre: "Lucía Ferreyra", zona: "San Telmo", poblaciones: ["Adultos"], areas: ["Salud mental"], salidas: 15, exp: "6 años de experiencia", dispo: "Tardes y fines de semana", verificado: true, bio: "Acompaño a adultos en tratamiento de salud mental. Las salidas culturales grupales son parte central de mi forma de trabajar la reinserción social." },
   { nombre: "Julián Ríos", zona: "Palermo", poblaciones: ["Niñez"], areas: ["TEA", "Integración escolar"], salidas: 9, exp: "3 años de experiencia", dispo: "Horarios flexibles", verificado: false, bio: "AT recibido en 2023. Trabajo con niños pequeños, coordinando siempre con la familia y el equipo terapéutico." },
   { nombre: "Vera Molina", zona: "Belgrano", poblaciones: ["Adolescencia", "Adultos"], areas: ["Salud mental", "TDAH"], salidas: 21, exp: "7 años de experiencia", dispo: "Lunes a sábado", verificado: true, bio: "Acompaño adolescentes y adultos jóvenes. Creo en el grupo entre pares como motor del proceso: por eso organizo muchas salidas compartidas." },
+  { nombre: "Rocío Medina", zona: "Córdoba Capital", poblaciones: ["Niñez", "Adolescencia"], areas: ["TEA", "Integración escolar"], salidas: 12, exp: "4 años de experiencia", dispo: "Lunes a viernes por la mañana", verificado: true, bio: "Acompaño a niños y adolescentes con TEA en escuelas y salidas recreativas por el centro y las sierras de Córdoba." },
+  { nombre: "Tomás Ibarra", zona: "Rosario", poblaciones: ["Adultos"], areas: ["Salud mental"], salidas: 8, exp: "4 años de experiencia", dispo: "Tardes", verificado: true, bio: "Trabajo con adultos en tratamiento de salud mental, organizando salidas grupales por la costanera y el centro de Rosario." },
+  { nombre: "Florencia Reyes", zona: "Mendoza Capital", poblaciones: ["Adultos mayores"], areas: ["Deterioro cognitivo"], salidas: 14, exp: "6 años de experiencia", dispo: "Mañanas", verificado: false, bio: "Especializada en adultos mayores, con salidas de ritmo pausado por los parques y espacios verdes de Mendoza." },
 ];
 
 /* ---------- piezas ---------- */
@@ -174,9 +205,9 @@ export default function RondaApp() {
   const avisar = (t) => { setToast(t); setTimeout(() => setToast(null), 2400); };
 
   /* registro AT */
-  const [regAT, setRegAT] = useState({ nombre: "", zona: "Palermo", poblaciones: [], areas: [], exp: "1 a 3 años", cert: false });
+  const [regAT, setRegAT] = useState({ nombre: "", provincia: "Buenos Aires (CABA y GBA)", zona: "Palermo", poblaciones: [], areas: [], exp: "1 a 3 años", cert: false });
   /* registro familia */
-  const [regFam, setRegFam] = useState({ nombre: "", zona: "Palermo", para: "Mi hijo/a", poblacion: "Niñez", edad: "", areas: [], horario: "Tardes" });
+  const [regFam, setRegFam] = useState({ nombre: "", provincia: "Buenos Aires (CABA y GBA)", zona: "Palermo", para: "Mi hijo/a", poblacion: "Niñez", edad: "", areas: [], horario: "Tardes" });
 
   /* estado app AT */
   const [tab, setTab] = useState("salidas");
@@ -233,8 +264,8 @@ export default function RondaApp() {
   };
   const tRuta = elapsedSec * 0.08;
 
-  const iniciarSesion = (titulo, at, demo) => {
-    setSesion({ titulo, at, inicioTs: Date.now(), checkins: [{ texto: "Salida iniciada", hora: horaAhora() }], demo, finalizada: false });
+  const iniciarSesion = (titulo, at, demo, zona) => {
+    setSesion({ titulo, at, zona, inicioTs: Date.now(), checkins: [{ texto: "Salida iniciada", hora: horaAhora() }], demo, finalizada: false });
   };
   const agregarCheckin = (texto) => {
     setSesion((s) => ({ ...s, checkins: [...s.checkins, { texto, hora: horaAhora() }] }));
@@ -248,13 +279,15 @@ export default function RondaApp() {
   const MapaVivo = ({ alto = 210 }) => {
     const [px, py] = posEn(tRuta);
     const trail = [0.9, 0.6, 0.3].map((d) => posEn(Math.max(tRuta - d, 0)));
+    const tituloCorto = sesion?.titulo && sesion.titulo.length > 30 ? sesion.titulo.slice(0, 28) + "…" : sesion?.titulo;
+    const etiqueta = [tituloCorto, sesion?.zona].filter(Boolean).join(" · ");
     return (
       <svg viewBox="0 0 400 230" width="100%" height={alto} role="img" aria-label="Ubicación de la salida en curso">
         <rect width="400" height="230" fill="#EAEBF5" />
         {[60, 130, 200, 270, 340].map((x) => <line key={x} x1={x} y1="0" x2={x} y2="230" stroke="#DFE1F0" strokeWidth="1.5" />)}
         {[50, 115, 180].map((y) => <line key={y} x1="0" y1={y} x2="400" y2={y} stroke="#DFE1F0" strokeWidth="1.5" />)}
         <ellipse cx="205" cy="128" rx="128" ry="78" fill="#D6F0E7" />
-        <text x="205" y="215" fontSize="10" fill="#7FB9A6" textAnchor="middle">Jardín Botánico · Palermo</text>
+        <text x="205" y="215" fontSize="10" fill="#7FB9A6" textAnchor="middle">{etiqueta}</text>
         <polyline points={WAY.map((p) => p.join(",")).join(" ")} fill="none" stroke="#A9D8CE" strokeWidth="2.5" strokeDasharray="5 5" />
         {trail.map(([tx, ty], i) => (
           <circle key={i} cx={tx} cy={ty} r={3 + i} fill={VERDE} opacity={0.15 + i * 0.1} />
@@ -449,12 +482,20 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
             value={regAT.nombre} onChange={(e) => setRegAT({ ...regAT, nombre: e.target.value })} />
         </Campo>
 
-        <Campo label="Zona donde trabajás">
-          <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regAT.zona} onChange={(e) => setRegAT({ ...regAT, zona: e.target.value })}>
-            {ZONAS.map((z) => <option key={z}>{z}</option>)}
-          </select>
-          <span className="text-xs" style={{ color: "#9BA0BC" }}>Se muestra tu zona, nunca una dirección exacta.</span>
-        </Campo>
+        <div className="flex gap-3">
+          <Campo label="Provincia">
+            <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regAT.provincia}
+              onChange={(e) => setRegAT({ ...regAT, provincia: e.target.value, zona: PROVINCIAS[e.target.value][0] })}>
+              {Object.keys(PROVINCIAS).map((p) => <option key={p}>{p}</option>)}
+            </select>
+          </Campo>
+          <Campo label="Ciudad / localidad donde trabajás">
+            <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regAT.zona} onChange={(e) => setRegAT({ ...regAT, zona: e.target.value })}>
+              {PROVINCIAS[regAT.provincia].map((z) => <option key={z}>{z}</option>)}
+            </select>
+          </Campo>
+        </div>
+        <span className="text-xs -mt-2" style={{ color: "#9BA0BC" }}>Se muestra tu zona, nunca una dirección exacta.</span>
 
         <Campo label="¿Con qué poblaciones trabajás?">
           <MultiChips opciones={POBLACIONES} valores={regAT.poblaciones} colorMap={POB_COLOR}
@@ -520,12 +561,20 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
             value={regFam.nombre} onChange={(e) => setRegFam({ ...regFam, nombre: e.target.value })} />
         </Campo>
 
-        <Campo label="Tu zona">
-          <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regFam.zona} onChange={(e) => setRegFam({ ...regFam, zona: e.target.value })}>
-            {ZONAS.map((z) => <option key={z}>{z}</option>)}
-          </select>
-          <span className="text-xs" style={{ color: "#9BA0BC" }}>Usamos tu zona para mostrarte ATs cercanos. Nunca pedimos tu dirección.</span>
-        </Campo>
+        <div className="flex gap-3">
+          <Campo label="Tu provincia">
+            <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regFam.provincia}
+              onChange={(e) => setRegFam({ ...regFam, provincia: e.target.value, zona: PROVINCIAS[e.target.value][0] })}>
+              {Object.keys(PROVINCIAS).map((p) => <option key={p}>{p}</option>)}
+            </select>
+          </Campo>
+          <Campo label="Tu ciudad / localidad">
+            <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regFam.zona} onChange={(e) => setRegFam({ ...regFam, zona: e.target.value })}>
+              {PROVINCIAS[regFam.provincia].map((z) => <option key={z}>{z}</option>)}
+            </select>
+          </Campo>
+        </div>
+        <span className="text-xs -mt-2" style={{ color: "#9BA0BC" }}>Usamos tu zona para mostrarte ATs cercanos. Nunca pedimos tu dirección.</span>
 
         <div className="flex gap-3">
           <Campo label="¿Para quién buscás?">
@@ -581,12 +630,38 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
     (bZona === "Todas" || a.zona === bZona) && (bPob === "Todas" || a.poblaciones.includes(bPob))
   );
 
+  /* posiciones aproximadas en el lienzo estilizado (no georreferenciadas),
+     agrupadas por ciudad dentro de un esquema que sigue, a grandes rasgos,
+     la posición relativa real de cada provincia dentro del país */
   const COORDS = {
-    "Belgrano": [115, 72], "Villa Urquiza": [55, 128], "Palermo": [180, 152],
-    "Recoleta": [278, 182], "Caballito": [125, 288], "Flores": [58, 342], "San Telmo": [308, 305],
+    "San Miguel de Tucumán": [235, 35], "Yerba Buena": [222, 45],
+    "Rosario": [275, 140], "Santa Fe Capital": [255, 115],
+    "Córdoba Capital": [195, 195], "Villa Carlos Paz": [178, 190], "Río Cuarto": [205, 225],
+    "Mendoza Capital": [85, 230], "Godoy Cruz": [95, 245],
+    "Palermo": [300, 265], "Recoleta": [325, 275], "Caballito": [285, 295], "Belgrano": [310, 245],
+    "San Telmo": [330, 300], "Villa Urquiza": [270, 280], "Flores": [275, 310],
+    "San Isidro": [305, 230], "Vicente López": [320, 235], "La Plata": [345, 330],
+    "Neuquén Capital": [140, 385], "Plottier": [150, 392],
   };
-  const userPos = COORDS[regFam.zona] || [180, 152];
-  const distKm = (pos) => {
+  const PROVINCIA_LABEL_POS = {
+    "Tucumán": [228, 18],
+    "Santa Fe": [265, 98],
+    "Córdoba": [195, 172],
+    "Mendoza": [90, 208],
+    "Buenos Aires (CABA y GBA)": [305, 208],
+    "Neuquén": [145, 363],
+  };
+  const userPos = COORDS[regFam.zona] || COORDS["Palermo"];
+  const distKm = (pos, zonaAT) => {
+    const provFam = PROVINCIA_DE[regFam.zona] || "Buenos Aires (CABA y GBA)";
+    const provAT = PROVINCIA_DE[zonaAT] || "Buenos Aires (CABA y GBA)";
+    if (provFam !== provAT) {
+      const base = "Buenos Aires (CABA y GBA)";
+      const kmFam = provFam === base ? 0 : (DIST_PROVINCIA_KM[provFam] || 500);
+      const kmAT = provAT === base ? 0 : (DIST_PROVINCIA_KM[provAT] || 500);
+      const total = kmFam === 0 ? kmAT : kmAT === 0 ? kmFam : kmFam + kmAT;
+      return total.toString();
+    }
     const d = Math.sqrt((pos[0] - userPos[0]) ** 2 + (pos[1] - userPos[1]) ** 2) * 0.022;
     return (Math.round(Math.max(d, 0.3) * 10) / 10).toString().replace(".", ",");
   };
@@ -634,7 +709,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
         <select value={bZona} onChange={(e) => setBZona(e.target.value)}
           className="rd-input text-xs rounded-full px-3 py-2 font-semibold" style={{ width: "auto" }} aria-label="Filtrar por zona">
           <option>Todas</option>
-          {ZONAS.map((z) => <option key={z}>{z}</option>)}
+          <ZonaOptions />
         </select>
         {["Todas", ...POBLACIONES].map((p) => (
           <button key={p} onClick={() => setBPob(p)}
@@ -665,14 +740,13 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
               ))}
               <line x1="0" y1="60" x2="340" y2="420" stroke="#D3D5E8" strokeWidth="5" />
               <line x1="30" y1="0" x2="330" y2="430" stroke="#D3D5E8" strokeWidth="5" />
-              <path d="M345,0 L400,0 L400,430 L385,430 C370,340 355,220 350,120 Z" fill="#CBDDF5" />
-              <text x="378" y="215" fontSize="9" fill="#8FA3C9" transform="rotate(78 378 215)">Río de la Plata</text>
-              <ellipse cx="195" cy="118" rx="58" ry="34" fill="#D6F0E7" />
-              <text x="172" y="120" fontSize="8" fill="#7FB9A6">Bosques de Palermo</text>
-              <ellipse cx="330" cy="345" rx="26" ry="42" fill="#D6F0E7" />
-              <ellipse cx="70" cy="310" rx="20" ry="14" fill="#D6F0E7" />
-              {Object.entries(COORDS).map(([z, [x, y]]) => (
-                <text key={z} x={x} y={y + 32} fontSize="9" fill="#9BA0BC" textAnchor="middle">{z}</text>
+              <path d="M355,0 L400,0 L400,430 L370,430 C360,300 358,150 355,0 Z" fill="#CBDDF5" />
+              <text x="385" y="215" fontSize="9" fill="#8FA3C9" transform="rotate(90 385 215)">Océano Atlántico</text>
+              <ellipse cx="195" cy="150" rx="40" ry="26" fill="#D6F0E7" />
+              <ellipse cx="300" cy="290" rx="30" ry="20" fill="#D6F0E7" />
+              <ellipse cx="90" cy="255" rx="24" ry="16" fill="#D6F0E7" />
+              {Object.entries(PROVINCIA_LABEL_POS).map(([prov, [x, y]]) => (
+                <text key={prov} x={x} y={y} fontSize="9" fontWeight="bold" fill="#9BA0BC" textAnchor="middle">{prov}</text>
               ))}
 
               {/* vos */}
@@ -706,7 +780,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
                   {atsFiltrados[pinSel].verificado && <BadgeCheck size={14} color={VERDE} />}
                 </div>
                 <p className="text-xs" style={{ color: GRIS }}>
-                  {atsFiltrados[pinSel].zona} · a ~{distKm(pinPos(atsFiltrados[pinSel], pinSel))} km de tu zona
+                  {atsFiltrados[pinSel].zona} · a ~{distKm(pinPos(atsFiltrados[pinSel], pinSel), atsFiltrados[pinSel].zona)} km de tu zona
                 </p>
               </div>
               <button onClick={() => { setAtSel(pinSel); setPinSel(null); setEscribiendo(false); }}
@@ -735,7 +809,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
                       : <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: "#FCF0D8", color: AMBAR }}>Verificación en curso</span>}
                   </div>
                   <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: GRIS }}>
-                    <MapPin size={12} />{a.zona} · a ~{distKm(pinPos(a, i))} km · {a.exp}
+                    <MapPin size={12} />{a.zona} · a ~{distKm(pinPos(a, i), a.zona)} km · {a.exp}
                   </p>
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {a.poblaciones.map((p) => <ChipPob key={p} poblacion={p} />)}
@@ -954,7 +1028,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
         <select value={fZona} onChange={(e) => setFZona(e.target.value)}
           className="rd-input text-xs rounded-full px-3 py-2 font-semibold" style={{ width: "auto" }} aria-label="Filtrar por zona">
           <option>Todas</option>
-          {ZONAS.map((z) => <option key={z}>{z}</option>)}
+          <ZonaOptions />
         </select>
         {["Todas", ...POBLACIONES].map((p) => (
           <button key={p} onClick={() => setFPob(p)}
@@ -1054,7 +1128,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
                 <Navigation size={15} /> Ver salida en curso · {fmtTiempo(elapsedSec)}
               </button>
             ) : (
-              <button onClick={() => { iniciarSesion(salida.titulo, yoAT, false); setDetalleId(null); setVerEnCurso(true); }}
+              <button onClick={() => { iniciarSesion(salida.titulo, yoAT, false, salida.zona); setDetalleId(null); setVerEnCurso(true); }}
                 className="w-full rounded-2xl py-3.5 font-bold text-sm flex items-center justify-center gap-2"
                 style={{ background: "#fff", border: "1.5px solid " + VERDE, color: VERDE }}>
                 <Play size={15} /> Iniciar salida en vivo
@@ -1108,7 +1182,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
         <div className="flex gap-3">
           <Campo label="Zona">
             <select className="rd-input rounded-xl px-3 py-3 text-sm" value={form.zona} onChange={(e) => setForm({ ...form, zona: e.target.value })}>
-              {ZONAS.map((z) => <option key={z}>{z}</option>)}
+              <ZonaOptions />
             </select>
           </Campo>
           <Campo label="Población">
@@ -1575,7 +1649,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
           <p className="text-sm mt-1" style={{ color: GRIS }}>
             Cuando el AT inicie una salida, vas a ver acá el recorrido y sus avisos en tiempo real.
           </p>
-          <button onClick={() => iniciarSesion("Recorrido Jardín Botánico", "Carmen Aguirre", true)}
+          <button onClick={() => iniciarSesion("Recorrido Jardín Botánico", "Carmen Aguirre", true, "Palermo")}
             className="mt-4 rounded-full px-5 py-2.5 text-sm font-bold" style={{ background: CORAL, color: "#fff" }}>
             Ver demo en vivo
           </button>
