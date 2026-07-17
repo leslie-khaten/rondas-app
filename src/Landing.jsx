@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   CalendarDays, ShieldCheck, MapPin, MessageCircle, Sparkles, HeartHandshake,
   Navigation, Check, ChevronRight, ChevronDown, Accessibility, Star, BadgeCheck,
@@ -285,6 +286,7 @@ const FaqItem = ({ pregunta, respuesta, abierto, onClick }) => (
 
 export default function Landing() {
   const [faqAbierta, setFaqAbierta] = useState(0);
+  const navigate = useNavigate();
 
   const scrollTo = (id) => (e) => {
     e.preventDefault();
@@ -314,7 +316,7 @@ export default function Landing() {
             <a href="#blog" onClick={scrollTo("blog")}>Blog</a>
             <a href="#faq" onClick={scrollTo("faq")}>FAQ</a>
           </nav>
-          <Boton variant="primary" onClick={scrollTo("app")}>Probar la app</Boton>
+          <Boton variant="primary" onClick={() => navigate("/app")}>Probar la app</Boton>
         </div>
       </header>
 
@@ -333,7 +335,7 @@ export default function Landing() {
               rondas es la red de acompañamiento terapéutico que conecta a los dos lados del cuidado: acompañantes terapéuticos que coordinan salidas grupales con colegas verificados, y familias que encuentran al profesional indicado cerca suyo. Todo en un mismo lugar, con certificaciones revisadas manualmente y privacidad por diseño.
             </p>
             <div className="flex flex-wrap gap-3 mt-4">
-              <Boton variant="primary" onClick={scrollTo("app")}>Soy acompañante terapéutico/a</Boton>
+              <Boton variant="primary" onClick={() => navigate("/app")}>Soy acompañante terapéutico/a</Boton>
               <Boton variant="outline" onClick={scrollTo("familias")}>Busco un acompañante</Boton>
             </div>
             <p className="text-sm mt-8 max-w-md" style={{ color: GRIS }}>
