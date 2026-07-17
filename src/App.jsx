@@ -5,7 +5,9 @@ import {
   ShieldCheck, FileCheck, Inbox, Star, Sparkles, ShieldAlert,
   Crown, Building2, Check, Bus, TreePine, Landmark, Accessibility,
   Map as MapIcon, List, ChevronRight, Navigation, Phone, Play, Square, X,
+  LogOut, Loader2,
 } from "lucide-react";
+import { supabase, errorAuthEnEspanol } from "./lib/supabase.js";
 
 /* ------------------------------------------------------------------ */
 /*  Ronda — prototipo completo: registro por rol + app AT + app familia */
@@ -292,15 +294,113 @@ function BotonPrimario({ onClick, children, icon: Icon }) {
 
 export default function RondaApp() {
   /* navegación global */
-  const [pantalla, setPantalla] = useState("bienvenida"); // bienvenida | registroAT | registroFam | app
+  const [pantalla, setPantalla] = useState("bienvenida"); // bienvenida | login | registroAT | registroFam | app
   const [rol, setRol] = useState(null); // 'at' | 'familia'
   const [toast, setToast] = useState(null);
   const avisar = (t) => { setToast(t); setTimeout(() => setToast(null), 2400); };
 
+  /* --- auth real (Supabase) --- */
+  const [usuario, setUsuario] = useState(null); // sesión de supabase.auth
+  const [perfilId, setPerfilId] = useState(null); // profiles.id (== usuario.id)
+  const [cargandoSesion, setCargandoSesion] = useState(true);
+  const [cargandoAuth, setCargandoAuth] = useState(false);
+  const [errorAuth, setErrorAuth] = useState("");
+  const [loginForm, setLoginForm] = useState({ email: "", password: "" });
+
+  useEffect(() => {
+    let activo = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!activo) return;
+      setUsuario(session?.user ?? null);
+      setCargandoSesion(false);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_evento, session) => {
+      setUsuario(session?.user ?? null);
+    });
+    return () => { activo = false; listener.subscription.unsubscribe(); };
+  }, []);
+
+  /* al detectar una sesión activa (login o refresh de página), traer el perfil real */
+  useEffect(() => {
+    if (!usuario || perfilId === usuario.id) return;
+    (async () => {
+      const { data, error } = await supabase.from("profiles").select("*").eq("id", usuario.id).single();
+      if (error || !data) return;
+      setPerfilId(data.id);
+      setRol(data.rol);
+      if (data.rol === "at") {
+        setRegAT((p) => ({ ...p, nombre: data.nombre, zona: data.zona || p.zona, provincia: data.provincia || p.provincia, poblaciones: data.poblaciones || [], areas: data.areas || [], exp: data.experiencia || p.exp, cert: !!data.verificado }));
+      } else {
+        setRegFam((p) => ({ ...p, nombre: data.nombre, zona: data.zona || p.zona, provincia: data.provincia || p.provincia, areas: data.areas || [] }));
+      }
+      setPantalla("app");
+    })();
+  }, [usuario, perfilId]);
+
   /* registro AT */
-  const [regAT, setRegAT] = useState({ nombre: "", provincia: "Buenos Aires (CABA, GBA e interior)", zona: "Palermo", poblaciones: [], areas: [], exp: "1 a 3 años", cert: false });
+  const [regAT, setRegAT] = useState({ nombre: "", email: "", password: "", provincia: "Buenos Aires (CABA, GBA e interior)", zona: "Palermo", poblaciones: [], areas: [], exp: "1 a 3 años", cert: false });
   /* registro familia */
-  const [regFam, setRegFam] = useState({ nombre: "", provincia: "Buenos Aires (CABA, GBA e interior)", zona: "Palermo", para: "Mi hijo/a", poblacion: "Niñez", edad: "", areas: [], horario: "Tardes" });
+  const [regFam, setRegFam] = useState({ nombre: "", email: "", password: "", provincia: "Buenos Aires (CABA, GBA e interior)", zona: "Palermo", para: "Mi hijo/a", poblacion: "Niñez", edad: "", areas: [], horario: "Tardes" });
+
+  const registrarse = async (rolNuevo, datos) => {
+    setErrorAuth(""); setCargandoAuth(true);
+    const { data, error } = await supabase.auth.signUp({
+      email: datos.email,
+      password: datos.password,
+      options: {
+        data: {
+          rol: rolNuevo,
+          nombre: datos.nombre,
+          zona: datos.zona,
+          provincia: datos.provincia,
+          poblaciones: rolNuevo === "at" ? datos.poblaciones : [datos.poblacion],
+          areas: datos.areas,
+          experiencia: rolNuevo === "at" ? datos.exp : null,
+        },
+      },
+    });
+    setCargandoAuth(false);
+    if (error) { setErrorAuth(errorAuthEnEspanol(error)); return false; }
+    if (!data.session) {
+      avisar("Cuenta creada. Revisá tu email para confirmarla.");
+      setPantalla("login");
+      return true;
+    }
+    setRol(rolNuevo);
+    avisar("Cuenta creada");
+    return true;
+  };
+
+  const iniciarSesionAuth = async () => {
+    setErrorAuth(""); setCargandoAuth(true);
+    const { error } = await supabase.auth.signInWithPassword({ email: loginForm.email, password: loginForm.password });
+    setCargandoAuth(false);
+    if (error) { setErrorAuth(errorAuthEnEspanol(error)); return; }
+    setLoginForm({ email: "", password: "" });
+  };
+
+  const cerrarSesion = async () => {
+    await supabase.auth.signOut();
+    setUsuario(null); setPerfilId(null); setRol(null);
+    setPantalla("bienvenida");
+    avisar("Sesión cerrada");
+  };
+
+  const [editandoPerfil, setEditandoPerfil] = useState(false);
+  const [guardandoPerfil, setGuardandoPerfil] = useState(false);
+
+  const guardarPerfil = async () => {
+    if (!usuario) return;
+    setGuardandoPerfil(true);
+    const payload = rol === "at"
+      ? { nombre: regAT.nombre, zona: regAT.zona, provincia: regAT.provincia, poblaciones: regAT.poblaciones, areas: regAT.areas, experiencia: regAT.exp }
+      : { nombre: regFam.nombre, zona: regFam.zona, provincia: regFam.provincia, poblaciones: [regFam.poblacion], areas: regFam.areas };
+    const { error } = await supabase.from("profiles").update(payload).eq("id", usuario.id);
+    setGuardandoPerfil(false);
+    if (error) { avisar(errorAuthEnEspanol(error)); return; }
+    setEditandoPerfil(false);
+    avisar("Perfil actualizado");
+  };
 
   /* estado app AT */
   const [tab, setTab] = useState("salidas");
@@ -551,10 +651,56 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
       </div>
 
       <div className="mt-auto pb-8 pt-10">
-        <div className="flex items-center justify-center gap-2 text-xs" style={{ color: "#9BA0BC" }}>
+        <button onClick={() => { setErrorAuth(""); setPantalla("login"); }}
+          className="w-full text-center text-sm font-bold py-2" style={{ color: VERDE }}>
+          Ya tengo cuenta · Iniciar sesión
+        </button>
+        <div className="flex items-center justify-center gap-2 text-xs mt-3" style={{ color: "#9BA0BC" }}>
           <ShieldCheck size={14} />
           <span>Certificaciones revisadas manualmente antes de publicar cada perfil</span>
         </div>
+      </div>
+    </div>
+  );
+
+  /* ================================================================ */
+  /*  PANTALLA: LOGIN                                                 */
+  /* ================================================================ */
+
+  const Login = (
+    <div className="px-4 pb-10">
+      <div className="pt-5 flex items-center gap-3">
+        <button onClick={() => setPantalla("bienvenida")} className="rounded-full p-2" style={{ background: "#fff", border: "1px solid #E4E2D8" }} aria-label="Volver">
+          <ChevronLeft size={18} />
+        </button>
+        <div>
+          <p className="text-xs font-bold" style={{ color: VERDE }}>INICIAR SESIÓN</p>
+          <h1 className="rd-display text-xl" style={{ fontWeight: 800 }}>Bienvenido/a de nuevo</h1>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4 mt-5">
+        <Campo label="Email">
+          <input type="email" className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="tu@email.com"
+            value={loginForm.email} onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })} />
+        </Campo>
+        <Campo label="Contraseña">
+          <input type="password" className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="••••••••"
+            value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} />
+        </Campo>
+
+        {errorAuth && (
+          <div className="rounded-2xl p-3 text-xs font-semibold" style={{ background: "#FCE4E4", color: "#B3261E" }}>
+            {errorAuth}
+          </div>
+        )}
+
+        <BotonPrimario onClick={() => {
+          if (!loginForm.email.trim() || !loginForm.password) { setErrorAuth("Completá email y contraseña."); return; }
+          iniciarSesionAuth();
+        }}>
+          {cargandoAuth ? <Loader2 size={16} className="animate-spin" /> : "Iniciar sesión"}
+        </BotonPrimario>
       </div>
     </div>
   );
@@ -579,6 +725,16 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
         <Campo label="Nombre y apellido">
           <input className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="Ej: Sofía Paredes"
             value={regAT.nombre} onChange={(e) => setRegAT({ ...regAT, nombre: e.target.value })} />
+        </Campo>
+
+        <Campo label="Email">
+          <input type="email" className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="tu@email.com"
+            value={regAT.email} onChange={(e) => setRegAT({ ...regAT, email: e.target.value })} />
+        </Campo>
+
+        <Campo label="Contraseña">
+          <input type="password" className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="Mínimo 6 caracteres"
+            value={regAT.password} onChange={(e) => setRegAT({ ...regAT, password: e.target.value })} />
         </Campo>
 
         <div className="flex gap-3">
@@ -626,13 +782,22 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
           </span>
         </Campo>
 
-        <BotonPrimario onClick={() => {
-          if (!regAT.nombre.trim()) { avisar("Contanos tu nombre"); return; }
-          if (regAT.poblaciones.length === 0) { avisar("Elegí al menos una población"); return; }
-          setPantalla("app"); setTab("salidas");
-          avisar(regAT.cert ? "Cuenta creada · certificado en revisión" : "Cuenta creada");
+        {errorAuth && (
+          <div className="rounded-2xl p-3 text-xs font-semibold" style={{ background: "#FCE4E4", color: "#B3261E" }}>
+            {errorAuth}
+          </div>
+        )}
+
+        <BotonPrimario onClick={async () => {
+          if (!regAT.nombre.trim()) { setErrorAuth("Contanos tu nombre."); return; }
+          if (!regAT.email.trim()) { setErrorAuth("Ingresá tu email."); return; }
+          if (regAT.password.length < 6) { setErrorAuth("La contraseña debe tener al menos 6 caracteres."); return; }
+          if (regAT.poblaciones.length === 0) { setErrorAuth("Elegí al menos una población."); return; }
+          setErrorAuth("");
+          const ok = await registrarse("at", regAT);
+          if (ok) setTab("salidas");
         }}>
-          Crear mi cuenta
+          {cargandoAuth ? <Loader2 size={16} className="animate-spin" /> : "Crear mi cuenta"}
         </BotonPrimario>
       </div>
     </div>
@@ -658,6 +823,16 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
         <Campo label="Tu nombre">
           <input className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="Ej: Ana Gutiérrez"
             value={regFam.nombre} onChange={(e) => setRegFam({ ...regFam, nombre: e.target.value })} />
+        </Campo>
+
+        <Campo label="Email">
+          <input type="email" className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="tu@email.com"
+            value={regFam.email} onChange={(e) => setRegFam({ ...regFam, email: e.target.value })} />
+        </Campo>
+
+        <Campo label="Contraseña">
+          <input type="password" className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="Mínimo 6 caracteres"
+            value={regFam.password} onChange={(e) => setRegFam({ ...regFam, password: e.target.value })} />
         </Campo>
 
         <div className="flex gap-3">
@@ -710,12 +885,21 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
           </p>
         </div>
 
-        <BotonPrimario onClick={() => {
-          if (!regFam.nombre.trim()) { avisar("Contanos tu nombre"); return; }
-          setBZona(regFam.zona); setPantalla("app"); setTabFam("buscar");
-          avisar("Cuenta creada");
+        {errorAuth && (
+          <div className="rounded-2xl p-3 text-xs font-semibold" style={{ background: "#FCE4E4", color: "#B3261E" }}>
+            {errorAuth}
+          </div>
+        )}
+
+        <BotonPrimario onClick={async () => {
+          if (!regFam.nombre.trim()) { setErrorAuth("Contanos tu nombre."); return; }
+          if (!regFam.email.trim()) { setErrorAuth("Ingresá tu email."); return; }
+          if (regFam.password.length < 6) { setErrorAuth("La contraseña debe tener al menos 6 caracteres."); return; }
+          setErrorAuth("");
+          const ok = await registrarse("familia", regFam);
+          if (ok) { setBZona(regFam.zona); setTabFam("buscar"); }
         }}>
-          Crear mi cuenta
+          {cargandoAuth ? <Loader2 size={16} className="animate-spin" /> : "Crear mi cuenta"}
         </BotonPrimario>
       </div>
     </div>
@@ -1065,36 +1249,81 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
         <Avatar nombre={nombreFam} size={76} destacado />
         <h1 className="rd-display text-xl mt-3" style={{ fontWeight: 800 }}>{nombreFam}</h1>
         <p className="text-sm" style={{ color: GRIS }}>Busca acompañante · {regFam.zona}</p>
+        {usuario && <p className="text-xs mt-0.5" style={{ color: "#9BA0BC" }}>{usuario.email}</p>}
       </div>
 
-      <div className="rd-card rounded-2xl p-4 mt-6">
-        <p className="text-sm font-bold mb-2">Buscás acompañamiento para</p>
-        <div className="flex flex-wrap gap-2">
-          <span className="text-xs px-3 py-1.5 rounded-full font-semibold" style={{ background: PAPEL, border: "1px solid #E4E2D8" }}>{regFam.para}</span>
-          <ChipPob poblacion={regFam.poblacion} rango={regFam.edad || null} />
-          {regFam.areas.map((a) => (
-            <span key={a} className="text-xs px-3 py-1.5 rounded-full font-semibold" style={{ background: PAPEL, border: "1px solid #E4E2D8" }}>{a}</span>
-          ))}
-          <span className="text-xs px-3 py-1.5 rounded-full font-semibold" style={{ background: PAPEL, border: "1px solid #E4E2D8" }}>{regFam.horario}</span>
+      {editandoPerfil ? (
+        <div className="flex flex-col gap-4 mt-6">
+          <Campo label="Tu nombre">
+            <input className="rd-input rounded-xl px-3 py-3 text-sm" value={regFam.nombre}
+              onChange={(e) => setRegFam({ ...regFam, nombre: e.target.value })} />
+          </Campo>
+          <div className="flex gap-3">
+            <Campo label="Provincia">
+              <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regFam.provincia}
+                onChange={(e) => setRegFam({ ...regFam, provincia: e.target.value, zona: PROVINCIAS[e.target.value][0] })}>
+                {Object.keys(PROVINCIAS).map((p) => <option key={p}>{p}</option>)}
+              </select>
+            </Campo>
+            <Campo label="Ciudad / localidad">
+              <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regFam.zona}
+                onChange={(e) => setRegFam({ ...regFam, zona: e.target.value })}>
+                {PROVINCIAS[regFam.provincia].map((z) => <option key={z}>{z}</option>)}
+              </select>
+            </Campo>
+          </div>
+          <Campo label="Área de acompañamiento">
+            <MultiChips opciones={AREAS} valores={regFam.areas}
+              onToggle={(v) => setRegFam({ ...regFam, areas: toggle(regFam.areas, v) })} />
+          </Campo>
+          <div className="flex gap-2">
+            <button onClick={() => setEditandoPerfil(false)}
+              className="flex-1 rounded-2xl py-3 font-semibold text-sm" style={{ background: "#fff", border: "1px solid #D8D6CB", color: GRIS }}>
+              Cancelar
+            </button>
+            <button onClick={guardarPerfil}
+              className="flex-1 rounded-2xl py-3 font-bold text-sm flex items-center justify-center gap-2" style={{ background: CORAL, color: "#fff" }}>
+              {guardandoPerfil ? <Loader2 size={16} className="animate-spin" /> : "Guardar cambios"}
+            </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="rd-card rounded-2xl p-4 mt-6">
+            <p className="text-sm font-bold mb-2">Buscás acompañamiento para</p>
+            <div className="flex flex-wrap gap-2">
+              <span className="text-xs px-3 py-1.5 rounded-full font-semibold" style={{ background: PAPEL, border: "1px solid #E4E2D8" }}>{regFam.para}</span>
+              <ChipPob poblacion={regFam.poblacion} rango={regFam.edad || null} />
+              {regFam.areas.map((a) => (
+                <span key={a} className="text-xs px-3 py-1.5 rounded-full font-semibold" style={{ background: PAPEL, border: "1px solid #E4E2D8" }}>{a}</span>
+              ))}
+              <span className="text-xs px-3 py-1.5 rounded-full font-semibold" style={{ background: PAPEL, border: "1px solid #E4E2D8" }}>{regFam.horario}</span>
+            </div>
+          </div>
 
-      <div className="rd-card rounded-2xl p-4 mt-3 flex gap-3">
-        <ShieldCheck size={18} color={VERDE} style={{ flexShrink: 0, marginTop: 2 }} />
-        <p className="text-xs" style={{ color: GRIS }}>
-          Tu información es privada. Solo la ven los ATs a los que enviás una solicitud, y podés borrarla cuando quieras.
-        </p>
-      </div>
+          <div className="rd-card rounded-2xl p-4 mt-3 flex gap-3">
+            <ShieldCheck size={18} color={VERDE} style={{ flexShrink: 0, marginTop: 2 }} />
+            <p className="text-xs" style={{ color: GRIS }}>
+              Tu información es privada. Solo la ven los ATs a los que enviás una solicitud, y podés borrarla cuando quieras.
+            </p>
+          </div>
 
-      <button onClick={() => setVerAdminCud(true)}
-        className="w-full rounded-2xl py-3 font-semibold text-xs mt-4 flex items-center justify-center gap-1.5" style={{ background: "#fff", border: "1px solid #D8D6CB", color: "#8B6FC9" }}>
-        <Sparkles size={14} /> Modo admin: sugerencias de la IA (demo)
-      </button>
+          <button onClick={() => setEditandoPerfil(true)}
+            className="w-full rounded-2xl py-3 font-semibold text-sm mt-4" style={{ background: "#fff", border: "1px solid " + VERDE, color: VERDE }}>
+            Editar perfil
+          </button>
 
-      <button onClick={() => { setPantalla("bienvenida"); setRol(null); setAtSel(null); }}
-        className="w-full rounded-2xl py-3 font-semibold text-sm mt-2" style={{ background: "#fff", border: "1px solid #D8D6CB", color: GRIS }}>
-        Cambiar de rol (demo)
-      </button>
+          <button onClick={() => setVerAdminCud(true)}
+            className="w-full rounded-2xl py-3 font-semibold text-xs mt-2 flex items-center justify-center gap-1.5" style={{ background: "#fff", border: "1px solid #D8D6CB", color: "#8B6FC9" }}>
+            <Sparkles size={14} /> Modo admin: sugerencias de la IA (demo)
+          </button>
+
+          <button onClick={cerrarSesion}
+            className="w-full rounded-2xl py-3 font-semibold text-sm mt-2 flex items-center justify-center gap-1.5" style={{ background: "#fff", border: "1px solid #D8D6CB", color: "#D9464A" }}>
+            <LogOut size={14} /> Cerrar sesión
+          </button>
+        </>
+      )}
     </div>
   );
 
@@ -1556,69 +1785,124 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
         <Avatar nombre={nombrePerfilAT} size={76} destacado />
         <h1 className="rd-display text-xl mt-3" style={{ fontWeight: 800 }}>{nombrePerfilAT}</h1>
         <p className="text-sm" style={{ color: GRIS }}>Acompañante terapéutico/a · {regAT.zona}</p>
+        {usuario && <p className="text-xs mt-0.5" style={{ color: "#9BA0BC" }}>{usuario.email}</p>}
         <div className="flex items-center gap-1 mt-2 px-3 py-1.5 rounded-full text-xs font-bold"
           style={regAT.cert ? { background: "#DFF3F1", color: VERDE } : { background: "#FCF0D8", color: AMBAR }}>
-          <BadgeCheck size={14} /> {regAT.cert ? "Certificación en revisión" : "Certificado pendiente de carga"}
+          <BadgeCheck size={14} /> {regAT.cert ? "Verificado" : "Certificado pendiente de carga"}
         </div>
       </div>
 
-      <div className="flex gap-3 mt-6">
-        {[{ n: 0, l: "salidas realizadas" }, { n: joined.length, l: "próximas salidas" }].map((s) => (
-          <div key={s.l} className="rd-card rounded-2xl p-4 flex-1 text-center">
-            <p className="rd-display text-2xl" style={{ fontWeight: 800, color: VERDE }}>{s.n}</p>
-            <p className="text-xs mt-1" style={{ color: GRIS }}>{s.l}</p>
+      {editandoPerfil ? (
+        <div className="flex flex-col gap-4 mt-6">
+          <Campo label="Nombre y apellido">
+            <input className="rd-input rounded-xl px-3 py-3 text-sm" value={regAT.nombre}
+              onChange={(e) => setRegAT({ ...regAT, nombre: e.target.value })} />
+          </Campo>
+          <div className="flex gap-3">
+            <Campo label="Provincia">
+              <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regAT.provincia}
+                onChange={(e) => setRegAT({ ...regAT, provincia: e.target.value, zona: PROVINCIAS[e.target.value][0] })}>
+                {Object.keys(PROVINCIAS).map((p) => <option key={p}>{p}</option>)}
+              </select>
+            </Campo>
+            <Campo label="Ciudad / localidad">
+              <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regAT.zona}
+                onChange={(e) => setRegAT({ ...regAT, zona: e.target.value })}>
+                {PROVINCIAS[regAT.provincia].map((z) => <option key={z}>{z}</option>)}
+              </select>
+            </Campo>
           </div>
-        ))}
-      </div>
-
-      <div className="rd-card rounded-2xl p-4 mt-3">
-        <p className="text-sm font-bold mb-2">Poblaciones y especialidades</p>
-        <div className="flex flex-wrap gap-2">
-          {regAT.poblaciones.map((p) => <ChipPob key={p} poblacion={p} />)}
-          {regAT.areas.map((e) => (
-            <span key={e} className="text-xs px-3 py-1.5 rounded-full font-semibold" style={{ background: PAPEL, border: "1px solid #E4E2D8" }}>{e}</span>
-          ))}
-          {regAT.poblaciones.length === 0 && regAT.areas.length === 0 && (
-            <span className="text-xs" style={{ color: "#9BA0BC" }}>Completá tus especialidades desde el registro.</span>
-          )}
+          <Campo label="Poblaciones">
+            <MultiChips opciones={POBLACIONES} valores={regAT.poblaciones} colorMap={POB_COLOR}
+              onToggle={(v) => setRegAT({ ...regAT, poblaciones: toggle(regAT.poblaciones, v) })} />
+          </Campo>
+          <Campo label="Áreas de especialidad">
+            <MultiChips opciones={AREAS} valores={regAT.areas}
+              onToggle={(v) => setRegAT({ ...regAT, areas: toggle(regAT.areas, v) })} />
+          </Campo>
+          <Campo label="Años de experiencia">
+            <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regAT.exp}
+              onChange={(e) => setRegAT({ ...regAT, exp: e.target.value })}>
+              {["Menos de 1 año", "1 a 3 años", "3 a 7 años", "Más de 7 años"].map((o) => <option key={o}>{o}</option>)}
+            </select>
+          </Campo>
+          <div className="flex gap-2">
+            <button onClick={() => setEditandoPerfil(false)}
+              className="flex-1 rounded-2xl py-3 font-semibold text-sm" style={{ background: "#fff", border: "1px solid #D8D6CB", color: GRIS }}>
+              Cancelar
+            </button>
+            <button onClick={guardarPerfil}
+              className="flex-1 rounded-2xl py-3 font-bold text-sm flex items-center justify-center gap-2" style={{ background: CORAL, color: "#fff" }}>
+              {guardandoPerfil ? <Loader2 size={16} className="animate-spin" /> : "Guardar cambios"}
+            </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="flex gap-3 mt-6">
+            {[{ n: 0, l: "salidas realizadas" }, { n: joined.length, l: "próximas salidas" }].map((s) => (
+              <div key={s.l} className="rd-card rounded-2xl p-4 flex-1 text-center">
+                <p className="rd-display text-2xl" style={{ fontWeight: 800, color: VERDE }}>{s.n}</p>
+                <p className="text-xs mt-1" style={{ color: GRIS }}>{s.l}</p>
+              </div>
+            ))}
+          </div>
 
-      <div className="rd-card rounded-2xl p-4 mt-3">
-        <p className="text-sm font-bold mb-1">Zona de trabajo</p>
-        <p className="text-sm flex items-center gap-1" style={{ color: GRIS }}><MapPin size={14} /> {regAT.zona} y alrededores</p>
-      </div>
+          <div className="rd-card rounded-2xl p-4 mt-3">
+            <p className="text-sm font-bold mb-2">Poblaciones y especialidades</p>
+            <div className="flex flex-wrap gap-2">
+              {regAT.poblaciones.map((p) => <ChipPob key={p} poblacion={p} />)}
+              {regAT.areas.map((e) => (
+                <span key={e} className="text-xs px-3 py-1.5 rounded-full font-semibold" style={{ background: PAPEL, border: "1px solid #E4E2D8" }}>{e}</span>
+              ))}
+              {regAT.poblaciones.length === 0 && regAT.areas.length === 0 && (
+                <span className="text-xs" style={{ color: "#9BA0BC" }}>Completá tus especialidades desde "Editar perfil".</span>
+              )}
+            </div>
+          </div>
 
-      <div className="rd-card rounded-2xl p-4 mt-3">
-        <p className="text-sm font-bold mb-1">Experiencia</p>
-        <p className="text-sm" style={{ color: GRIS }}>{regAT.exp}</p>
-      </div>
+          <div className="rd-card rounded-2xl p-4 mt-3">
+            <p className="text-sm font-bold mb-1">Zona de trabajo</p>
+            <p className="text-sm flex items-center gap-1" style={{ color: GRIS }}><MapPin size={14} /> {regAT.zona} y alrededores</p>
+          </div>
 
-      <div className="rd-card rounded-2xl p-4 mt-3 flex items-center gap-3">
-        <div className="rounded-2xl p-2.5 flex-shrink-0" style={{ background: plan === "free" ? PAPEL : "#DFF3F1" }}>
-          <Crown size={20} color={plan === "free" ? "#9BA0BC" : VERDE} />
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-bold">Plan {plan === "free" ? "Free" : plan === "plus" ? "Plus" : "Pro"}</p>
-          <p className="text-xs" style={{ color: GRIS }}>
-            {plan === "free" ? "1 informe con IA por mes · 2 solicitudes de familias" : plan === "plus" ? "Informes ilimitados · planificador IA" : "Todo Plus + agenda y exportación"}
-          </p>
-        </div>
-        <button onClick={() => setVerPlanes(true)} className="text-xs font-bold px-3 py-2 rounded-full flex-shrink-0"
-          style={{ background: CORAL, color: "#fff" }}>
-          {plan === "free" ? "Mejorar" : "Ver planes"}
-        </button>
-      </div>
+          <div className="rd-card rounded-2xl p-4 mt-3">
+            <p className="text-sm font-bold mb-1">Experiencia</p>
+            <p className="text-sm" style={{ color: GRIS }}>{regAT.exp}</p>
+          </div>
 
-      <button onClick={() => setVerAdminCud(true)}
-        className="w-full rounded-2xl py-3 font-semibold text-xs mt-4 flex items-center justify-center gap-1.5" style={{ background: "#fff", border: "1px solid #D8D6CB", color: "#8B6FC9" }}>
-        <Sparkles size={14} /> Modo admin: sugerencias de la IA (demo)
-      </button>
+          <div className="rd-card rounded-2xl p-4 mt-3 flex items-center gap-3">
+            <div className="rounded-2xl p-2.5 flex-shrink-0" style={{ background: plan === "free" ? PAPEL : "#DFF3F1" }}>
+              <Crown size={20} color={plan === "free" ? "#9BA0BC" : VERDE} />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold">Plan {plan === "free" ? "Free" : plan === "plus" ? "Plus" : "Pro"}</p>
+              <p className="text-xs" style={{ color: GRIS }}>
+                {plan === "free" ? "1 informe con IA por mes · 2 solicitudes de familias" : plan === "plus" ? "Informes ilimitados · planificador IA" : "Todo Plus + agenda y exportación"}
+              </p>
+            </div>
+            <button onClick={() => setVerPlanes(true)} className="text-xs font-bold px-3 py-2 rounded-full flex-shrink-0"
+              style={{ background: CORAL, color: "#fff" }}>
+              {plan === "free" ? "Mejorar" : "Ver planes"}
+            </button>
+          </div>
 
-      <button onClick={() => { setPantalla("bienvenida"); setRol(null); }}
-        className="w-full rounded-2xl py-3 font-semibold text-sm mt-2" style={{ background: "#fff", border: "1px solid #D8D6CB", color: GRIS }}>
-        Cambiar de rol (demo)
-      </button>
+          <button onClick={() => setEditandoPerfil(true)}
+            className="w-full rounded-2xl py-3 font-semibold text-sm mt-4" style={{ background: "#fff", border: "1px solid " + VERDE, color: VERDE }}>
+            Editar perfil
+          </button>
+
+          <button onClick={() => setVerAdminCud(true)}
+            className="w-full rounded-2xl py-3 font-semibold text-xs mt-2 flex items-center justify-center gap-1.5" style={{ background: "#fff", border: "1px solid #D8D6CB", color: "#8B6FC9" }}>
+            <Sparkles size={14} /> Modo admin: sugerencias de la IA (demo)
+          </button>
+
+          <button onClick={cerrarSesion}
+            className="w-full rounded-2xl py-3 font-semibold text-sm mt-2 flex items-center justify-center gap-1.5" style={{ background: "#fff", border: "1px solid #D8D6CB", color: "#D9464A" }}>
+            <LogOut size={14} /> Cerrar sesión
+          </button>
+        </>
+      )}
     </div>
   );
 
@@ -2112,6 +2396,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
   let barras = null;
 
   if (pantalla === "bienvenida") contenido = Bienvenida;
+  else if (pantalla === "login") contenido = Login;
   else if (pantalla === "registroAT") contenido = RegistroAT;
   else if (pantalla === "registroFam") contenido = RegistroFam;
   else if (rol === "at") {
@@ -2139,6 +2424,14 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
 
   const tabActiva = rol === "at" ? tab : tabFam;
   const enDetalle = rol === "at" ? !!detalleId : atSel !== null;
+
+  if (cargandoSesion) {
+    return (
+      <div className="rd-root flex items-center justify-center" style={{ background: PAPEL, height: "100%", width: "100%" }}>
+        <Loader2 size={28} className="animate-spin" color={VERDE} />
+      </div>
+    );
+  }
 
   return (
     <div className="rd-root" style={{ background: "#DBDDEF", height: "100%", width: "100%" }}>
