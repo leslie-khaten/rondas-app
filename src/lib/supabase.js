@@ -28,5 +28,8 @@ export function errorAuthEnEspanol(error) {
   if (msg.includes("Unable to validate email") || msg.includes("invalid") && msg.includes("email")) {
     return "Ese email no es válido.";
   }
+  if (error.status === 429 || msg.includes("rate limit") || msg.includes("Too Many")) {
+    return "Se registraron muchas cuentas seguidas y se alcanzó el límite temporal del servidor. Esperá unos minutos e intentá de nuevo.";
+  }
   return "Algo salió mal. Intentá de nuevo en unos segundos.";
 }
