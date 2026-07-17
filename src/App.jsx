@@ -4,7 +4,7 @@ import {
   BadgeCheck, ChevronLeft, Send, Search, HeartHandshake,
   ShieldCheck, FileCheck, Inbox, Star, Sparkles, ShieldAlert,
   Crown, Building2, Check, Bus, TreePine, Landmark, Accessibility,
-  Map as MapIcon, List, ChevronRight, Navigation, Phone, Play, Square,
+  Map as MapIcon, List, ChevronRight, Navigation, Phone, Play, Square, X,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -134,6 +134,78 @@ const DIRECTORIO_ATS = [
   { nombre: "Florencia Reyes", zona: "Mendoza Capital", poblaciones: ["Adultos mayores"], areas: ["Deterioro cognitivo"], salidas: 14, exp: "6 años de experiencia", dispo: "Mañanas", verificado: false, bio: "Especializada en adultos mayores, con salidas de ritmo pausado por los parques y espacios verdes de Mendoza." },
 ];
 
+/* ---------- guía "Gratis con CUD": cobertura federal ---------- */
+
+const CUD_PROVINCIAS = [
+  "Nacional", "CABA", "GBA / PBA", "Mar del Plata", "Córdoba",
+  "Rosario / Santa Fe", "Patagonia (Río Negro)", "NOA (Salta)", "Misiones",
+];
+
+const CUD_BADGES = {
+  "gratis-cud": { label: "Gratis con CUD", color: VERDE },
+  "descuento-cud": { label: "Descuento con CUD", color: AMBAR },
+  "gratis-todos": { label: "Gratis para todos", color: GRIS },
+};
+
+const CUD_ACTIVIDADES_INICIALES = [
+  // --- NACIONAL ---
+  { id: 1, nombre: "Transporte urbano (colectivos, subte, trenes)", provincia: "Nacional", zona: "Todo el país", tipo: "transporte", poblaciones: POBLACIONES, badge: "gratis-cud", descripcion: "Sin cargo mostrando CUD y DNI al ascender. Acompañante gratis si el CUD lo indica.", acompanante: "Si el CUD lo indica", reserva: null, estado: "aprobada" },
+  { id: 2, nombre: "Micros y trenes de larga distancia", provincia: "Nacional", zona: "Todo el país", tipo: "transporte", poblaciones: POBLACIONES, badge: "gratis-cud", descripcion: "Pasaje sin cargo a cualquier destino nacional. Acompañante incluido si el CUD lo indica.", acompanante: "Si el CUD lo indica", reserva: "Gestionar mínimo 48hs antes (online en Trenes Argentinos con N° de CUD, o en boletería)", estado: "aprobada" },
+  { id: 3, nombre: "Parques Nacionales (Iguazú, Nahuel Huapi, Los Glaciares y todos)", provincia: "Nacional", zona: "Todo el país", tipo: "parque", poblaciones: POBLACIONES, badge: "gratis-cud", descripcion: "Entrada gratuita. Acompañante incluido si consta en el CUD.", acompanante: "Si consta en el CUD", reserva: null, estado: "aprobada" },
+  { id: 4, nombre: "Cines, teatros, recitales y eventos deportivos", provincia: "Nacional", zona: "Todo el país", tipo: "espectaculo", poblaciones: POBLACIONES, badge: "gratis-cud", descripcion: "Ley 22.431: ingreso sin costo con CUD físico o digital, con ubicaciones preferenciales. En eventos privados puede variar según normativa local.", acompanante: null, reserva: "Algunos requieren acreditación previa", estado: "aprobada" },
+
+  // --- CABA ---
+  { id: 5, nombre: "Museo Participativo de Ciencias \"Prohibido NO Tocar\"", provincia: "CABA", zona: "Recoleta", tipo: "museo", poblaciones: ["Niñez", "Adolescencia"], badge: "gratis-cud", descripcion: "Entrada gratuita para la persona con CUD.", acompanante: "Sí", reserva: "Grupos de +10: reservar con un mes de anticipación", estado: "aprobada" },
+  { id: 6, nombre: "Teatro Colón - visita guiada", provincia: "CABA", zona: "San Nicolás", tipo: "cultural", poblaciones: POBLACIONES, badge: "gratis-cud", descripcion: "Visita guiada sin cargo con CUD.", acompanante: "Sí", reserva: null, estado: "aprobada" },
+  { id: 7, nombre: "Museo de los Niños Abasto", provincia: "CABA", zona: "Abasto", tipo: "museo", poblaciones: ["Niñez"], badge: "gratis-cud", descripcion: "Entrada gratuita para la persona con CUD.", acompanante: null, reserva: null, estado: "aprobada" },
+  { id: 8, nombre: "Planetario Galileo Galilei", provincia: "CABA", zona: "Palermo", tipo: "espectaculo", poblaciones: POBLACIONES, badge: "gratis-cud", descripcion: "Entrada sin cargo para personas con CUD y su acompañante, en todas las funciones.", acompanante: "Sí", reserva: "Sacar entrada sin cargo online", estado: "aprobada" },
+  { id: 9, nombre: "MALBA", provincia: "CABA", zona: "Palermo", tipo: "museo", poblaciones: POBLACIONES, badge: "gratis-cud", descripcion: "Entrada gratuita con CUD.", acompanante: null, reserva: null, estado: "aprobada" },
+  { id: 10, nombre: "Museo de River", provincia: "CABA", zona: "Núñez", tipo: "museo", poblaciones: ["Adolescencia", "Adultos"], badge: "gratis-cud", descripcion: "Entrada gratuita con CUD.", acompanante: null, reserva: null, estado: "aprobada" },
+  { id: 11, nombre: "Museo de Boca", provincia: "CABA", zona: "La Boca", tipo: "museo", poblaciones: POBLACIONES, badge: "gratis-cud", descripcion: "Lunes a viernes con certificado y DNI.", acompanante: null, reserva: null, estado: "aprobada" },
+  { id: 12, nombre: "Ecoparque", provincia: "CABA", zona: "Palermo", tipo: "parque", poblaciones: POBLACIONES, badge: "gratis-todos", descripcion: "Entrada gratuita para todo público.", acompanante: null, reserva: "Reserva online", estado: "aprobada" },
+  { id: 13, nombre: "Museo Nacional de Bellas Artes", provincia: "CABA", zona: "Recoleta", tipo: "museo", poblaciones: POBLACIONES, badge: "gratis-todos", descripcion: "Entrada siempre gratuita para todo público.", acompanante: null, reserva: null, estado: "aprobada" },
+  { id: 14, nombre: "Museo Histórico Nacional", provincia: "CABA", zona: "San Telmo", tipo: "museo", poblaciones: POBLACIONES, badge: "gratis-todos", descripcion: "Entrada gratuita todos los días para todo público.", acompanante: null, reserva: null, estado: "aprobada" },
+  { id: 15, nombre: "Usina del Arte y Centro Cultural Recoleta", provincia: "CABA", zona: "La Boca / Recoleta", tipo: "cultural", poblaciones: POBLACIONES, badge: "gratis-todos", descripcion: "Espacios con rampas, entrada libre.", acompanante: null, reserva: null, estado: "aprobada" },
+
+  // --- GBA / PBA ---
+  { id: 16, nombre: "Temaikén", provincia: "GBA / PBA", zona: "Escobar", tipo: "parque", poblaciones: POBLACIONES, badge: "gratis-cud", descripcion: "Acompañante gratis SOLO si el CUD lo indica; si no, paga entrada regular.", acompanante: "Solo si el CUD lo indica", reserva: null, estado: "aprobada" },
+  { id: 17, nombre: "Parque de la Costa", provincia: "GBA / PBA", zona: "Tigre", tipo: "parque", poblaciones: POBLACIONES, badge: "descuento-cud", descripcion: "Pasaporte bonificado para persona con certificado y acompañante.", acompanante: "Incluido en el pasaporte bonificado", reserva: null, estado: "aprobada" },
+  { id: 18, nombre: "Tecnópolis", provincia: "GBA / PBA", zona: "Villa Martelli", tipo: "parque", poblaciones: POBLACIONES, badge: "gratis-todos", descripcion: "Entradas gratuitas con reserva online; algunas propuestas son pagas.", acompanante: null, reserva: "Entradas gratuitas con reserva online", estado: "aprobada" },
+  { id: 19, nombre: "Planetario de La Plata", provincia: "GBA / PBA", zona: "La Plata", tipo: "espectaculo", poblaciones: POBLACIONES, badge: "gratis-todos", descripcion: "Funciones gratuitas fines de semana.", acompanante: null, reserva: null, estado: "aprobada" },
+
+  // --- MAR DEL PLATA ---
+  { id: 20, nombre: "Aquarium", provincia: "Mar del Plata", zona: "Mar del Plata", tipo: "parque", poblaciones: POBLACIONES, badge: "descuento-cud", descripcion: "40% de descuento con CUD en boletería; acompañante con igual descuento si el CUD lo indica.", acompanante: "Igual descuento si el CUD lo indica", reserva: null, estado: "aprobada" },
+  { id: 21, nombre: "Aquopolis", provincia: "Mar del Plata", zona: "Mar del Plata", tipo: "parque", poblaciones: POBLACIONES, badge: "descuento-cud", descripcion: "Una única entrada para la persona y su acompañante (ordenanza municipal).", acompanante: "Incluido en la única entrada", reserva: null, estado: "aprobada" },
+
+  // --- CÓRDOBA ---
+  { id: 22, nombre: "Museos Caraffa, Palacio Ferreyra y Palacio Dionisi", provincia: "Córdoba", zona: "Córdoba Capital", tipo: "museo", poblaciones: POBLACIONES, badge: "gratis-cud", descripcion: "Gratis todos los días con CUD; miércoles gratis para todos.", acompanante: null, reserva: null, estado: "aprobada" },
+  { id: 23, nombre: "Museo Histórico de la UNC", provincia: "Córdoba", zona: "Córdoba Capital", tipo: "museo", poblaciones: POBLACIONES, badge: "gratis-cud", descripcion: "Entrada gratuita con CUD.", acompanante: null, reserva: null, estado: "aprobada" },
+  { id: 24, nombre: "Cripta Jesuítica y Museo de la Industria", provincia: "Córdoba", zona: "Córdoba Capital", tipo: "cultural", poblaciones: POBLACIONES, badge: "gratis-todos", descripcion: "Entrada gratuita para todo público.", acompanante: null, reserva: null, estado: "aprobada" },
+
+  // --- ROSARIO / SANTA FE ---
+  { id: 25, nombre: "Acuario del Río Paraná", provincia: "Rosario / Santa Fe", zona: "Rosario", tipo: "parque", poblaciones: POBLACIONES, badge: "gratis-cud", descripcion: "Ingreso sin cargo para personas con discapacidad.", acompanante: null, reserva: null, estado: "aprobada" },
+  { id: 26, nombre: "Costanera y parques públicos", provincia: "Rosario / Santa Fe", zona: "Rosario", tipo: "parque", poblaciones: POBLACIONES, badge: "gratis-todos", descripcion: "Espacios públicos de acceso libre y gratuito.", acompanante: null, reserva: null, estado: "aprobada" },
+
+  // --- PATAGONIA (RÍO NEGRO) ---
+  { id: 27, nombre: "Parque Nacional Nahuel Huapi", provincia: "Patagonia (Río Negro)", zona: "Bariloche", tipo: "parque", poblaciones: POBLACIONES, badge: "gratis-cud", descripcion: "Entrada gratuita para personas con CUD y su acompañante.", acompanante: "Sí", reserva: null, estado: "aprobada" },
+  { id: 28, nombre: "Cerro Catedral - medios de elevación", provincia: "Patagonia (Río Negro)", zona: "Bariloche", tipo: "parque", poblaciones: POBLACIONES, badge: "descuento-cud", descripcion: "50% con CUD (físico o digital en Mi Argentina) + DNI; acompañante certificado: 30%.", acompanante: "30% de descuento", reserva: null, estado: "aprobada" },
+  { id: 29, nombre: "Teleférico Cerro Otto", provincia: "Patagonia (Río Negro)", zona: "Bariloche", tipo: "parque", poblaciones: POBLACIONES, badge: "descuento-cud", descripcion: "Persona con CUD sin cargo en promociones vigentes; acompañante abona tarifa. Confirmar condiciones del día.", acompanante: "Abona tarifa", reserva: null, estado: "aprobada" },
+
+  // --- NOA (SALTA) ---
+  { id: 30, nombre: "Tren a las Nubes", provincia: "NOA (Salta)", zona: "Salta Capital", tipo: "transporte", poblaciones: POBLACIONES, badge: "descuento-cud", descripcion: "Descuento con CUD para la persona y su acompañante certificado.", acompanante: null, reserva: "Iniciar trámite 30 días antes por mail a ventas o en oficina comercial, con certificado, DNI y datos del acompañante", estado: "aprobada" },
+
+  // --- MISIONES ---
+  { id: 31, nombre: "Cine IMAX y Las Tipas", provincia: "Misiones", zona: "Posadas", tipo: "espectaculo", poblaciones: POBLACIONES, badge: "gratis-cud", descripcion: "Entrada gratuita con CUD.", acompanante: null, reserva: null, estado: "aprobada" },
+  { id: 32, nombre: "Parque Nacional Iguazú", provincia: "Misiones", zona: "Puerto Iguazú", tipo: "parque", poblaciones: POBLACIONES, badge: "gratis-cud", descripcion: "Entrada gratuita para personas con CUD y su acompañante.", acompanante: "Sí", reserva: null, estado: "aprobada" },
+
+  // --- PENDIENTES: la IA las encontró pero todavía no fueron revisadas por un humano.
+  // En producción, este listado se alimenta de la API de Anthropic con la
+  // herramienta de web search, y cada resultado cae en una cola de moderación
+  // en la base de datos hasta que alguien del equipo lo aprueba o descarta acá.
+  { id: 33, nombre: "Teleférico San Bernardo", provincia: "NOA (Salta)", zona: "Salta Capital", tipo: "parque", poblaciones: POBLACIONES, badge: "descuento-cud", descripcion: "Posible beneficio CUD, sin confirmación oficial publicada.", acompanante: null, reserva: null, estado: "pendiente" },
+  { id: 34, nombre: "Tríptico de la Infancia", provincia: "Rosario / Santa Fe", zona: "Rosario", tipo: "museo", poblaciones: POBLACIONES, badge: "descuento-cud", descripcion: "Entrada de bajo costo; beneficio CUD a confirmar en boletería.", acompanante: null, reserva: null, estado: "pendiente" },
+];
+
 /* ---------- piezas ---------- */
 
 function Avatar({ nombre, size = 32, destacado = false }) {
@@ -246,6 +318,11 @@ export default function RondaApp() {
   const [plan, setPlan] = useState("free"); // free | plus | pro
   const [verPlanes, setVerPlanes] = useState(false);
   const [verCud, setVerCud] = useState(false);
+  const [verAdminCud, setVerAdminCud] = useState(false);
+  const [cudActividades, setCudActividades] = useState(CUD_ACTIVIDADES_INICIALES);
+  const [cudProvincia, setCudProvincia] = useState("Todas");
+  const [cudBadge, setCudBadge] = useState("Todas");
+  const [favoritosCud, setFavoritosCud] = useState([]);
   const [vistaMapa, setVistaMapa] = useState(false);
   const [pinSel, setPinSel] = useState(null);
   const [pinSelSalida, setPinSelSalida] = useState(null);
@@ -1009,8 +1086,13 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
         </p>
       </div>
 
+      <button onClick={() => setVerAdminCud(true)}
+        className="w-full rounded-2xl py-3 font-semibold text-xs mt-4 flex items-center justify-center gap-1.5" style={{ background: "#fff", border: "1px solid #D8D6CB", color: "#8B6FC9" }}>
+        <Sparkles size={14} /> Modo admin: sugerencias de la IA (demo)
+      </button>
+
       <button onClick={() => { setPantalla("bienvenida"); setRol(null); setAtSel(null); }}
-        className="w-full rounded-2xl py-3 font-semibold text-sm mt-4" style={{ background: "#fff", border: "1px solid #D8D6CB", color: GRIS }}>
+        className="w-full rounded-2xl py-3 font-semibold text-sm mt-2" style={{ background: "#fff", border: "1px solid #D8D6CB", color: GRIS }}>
         Cambiar de rol (demo)
       </button>
     </div>
@@ -1528,8 +1610,13 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
         </button>
       </div>
 
+      <button onClick={() => setVerAdminCud(true)}
+        className="w-full rounded-2xl py-3 font-semibold text-xs mt-4 flex items-center justify-center gap-1.5" style={{ background: "#fff", border: "1px solid #D8D6CB", color: "#8B6FC9" }}>
+        <Sparkles size={14} /> Modo admin: sugerencias de la IA (demo)
+      </button>
+
       <button onClick={() => { setPantalla("bienvenida"); setRol(null); }}
-        className="w-full rounded-2xl py-3 font-semibold text-sm mt-4" style={{ background: "#fff", border: "1px solid #D8D6CB", color: GRIS }}>
+        className="w-full rounded-2xl py-3 font-semibold text-sm mt-2" style={{ background: "#fff", border: "1px solid #D8D6CB", color: GRIS }}>
         Cambiar de rol (demo)
       </button>
     </div>
@@ -1539,15 +1626,17 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
   /*  PANTALLA: ACTIVIDADES GRATIS CON CUD                            */
   /* ================================================================ */
 
-  const CUD_ITEMS = [
-    { icon: Bus, titulo: "Transporte público gratuito", tag: "cud", desc: "Colectivos y trenes del AMBA sin cargo presentando CUD y DNI. Si el CUD indica \"con acompañante\", el AT también viaja gratis." },
-    { icon: Bus, titulo: "Micros y trenes de larga distancia", tag: "cud", desc: "Pasaje sin cargo solicitándolo con anticipación ante la empresa. Ideal para salidas fuera de la ciudad." },
-    { icon: TreePine, titulo: "Parques Nacionales", tag: "cud", desc: "Entrada gratuita para la persona con CUD y su acompañante en todos los Parques Nacionales del país." },
-    { icon: Landmark, titulo: "Planetario Galileo Galilei", tag: "cud", desc: "Entrada sin cargo para personas con CUD y su acompañante, en todas las funciones.", salida: { titulo: "Función en el Planetario", lugar: "Av. Sarmiento y B. Roldán — entrada principal", zona: "Palermo" } },
-    { icon: Landmark, titulo: "Museos nacionales", tag: "todos", desc: "Bellas Artes, Histórico Nacional, del Cabildo y más: entrada libre y gratuita.", salida: { titulo: "Museo Nacional de Bellas Artes", lugar: "Av. del Libertador 1473", zona: "Recoleta" } },
-    { icon: TreePine, titulo: "Ecoparque", tag: "todos", desc: "Entrada gratuita con reserva online. Recorridos cortos y accesibles.", salida: { titulo: "Mañana en el Ecoparque", lugar: "Entrada Av. Sarmiento 2725", zona: "Palermo" } },
-    { icon: TreePine, titulo: "Reserva Ecológica Costanera Sur", tag: "todos", desc: "Entrada libre. Senderos planos, ideales para ritmo pausado o movilidad reducida.", salida: { titulo: "Caminata en la Reserva Ecológica", lugar: "Entrada Brasil y Av. España", zona: "San Telmo" } },
-  ];
+  const zonaParaForm = (actividad) => (ZONAS.includes(actividad.zona) ? actividad.zona : "Palermo");
+
+  const toggleFavoritoCud = (id) => {
+    setFavoritosCud((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  };
+
+  const cudAprobadas = cudActividades.filter((a) =>
+    a.estado === "aprobada" &&
+    (cudProvincia === "Todas" || a.provincia === cudProvincia) &&
+    (cudBadge === "Todas" || a.badge === cudBadge)
+  );
 
   const Cud = (
     <div className="px-4 pb-28">
@@ -1557,54 +1646,173 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
         </button>
         <div>
           <h1 className="rd-display text-xl" style={{ fontWeight: 800 }}>Gratis con CUD</h1>
-          <p className="text-xs" style={{ color: GRIS }}>Beneficios del Certificado Único de Discapacidad para tus salidas</p>
+          <p className="text-xs" style={{ color: GRIS }}>Beneficios del Certificado Único de Discapacidad en todo el país</p>
         </div>
       </div>
 
-      <div className="rounded-2xl p-3 mt-4 text-xs" style={{ background: "#FCF0D8", color: "#7C6420" }}>
-        Los beneficios pueden cambiar y algunos requieren gestión previa. Verificá las condiciones vigentes antes de cada salida.
+      <div className="flex flex-wrap gap-3 mt-4 mb-1">
+        {Object.entries(CUD_BADGES).map(([key, b]) => (
+          <span key={key} className="text-xs font-semibold flex items-center gap-1.5">
+            <span className="rounded-full" style={{ width: 8, height: 8, background: b.color, display: "inline-block" }} />
+            {b.label}
+          </span>
+        ))}
       </div>
 
+      <div className="flex gap-2 overflow-x-auto pb-3 mt-2" style={{ scrollbarWidth: "none" }}>
+        <select value={cudProvincia} onChange={(e) => setCudProvincia(e.target.value)}
+          className="rd-input text-xs rounded-full px-3 py-2 font-semibold" style={{ width: "auto" }} aria-label="Filtrar por provincia">
+          <option>Todas</option>
+          {CUD_PROVINCIAS.map((p) => <option key={p}>{p}</option>)}
+        </select>
+        {["Todas", ...Object.keys(CUD_BADGES)].map((b) => (
+          <button key={b} onClick={() => setCudBadge(b)}
+            className="text-xs rounded-full px-3 py-2 font-semibold whitespace-nowrap"
+            style={cudBadge === b ? { background: NAVY, color: "#fff" } : { background: "#fff", color: TINTA, border: "1px solid #D8D6CB" }}>
+            {b === "Todas" ? "Todas" : CUD_BADGES[b].label}
+          </button>
+        ))}
+      </div>
+
+      {cudAprobadas.length === 0 && (
+        <div className="rd-card rounded-2xl p-6 text-center mt-2">
+          <p className="rd-display font-bold">No hay actividades con esos filtros</p>
+          <p className="text-sm mt-1" style={{ color: GRIS }}>Probá otra provincia o beneficio.</p>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3 mt-3">
-        {CUD_ITEMS.map((item) => {
-          const Icon = item.icon;
+        {cudAprobadas.map((a) => {
+          const badge = CUD_BADGES[a.badge];
+          const guardado = favoritosCud.includes(a.id);
           return (
-            <div key={item.titulo} className="rd-card rounded-2xl p-4">
-              <div className="flex items-start gap-3">
-                <div className="rounded-2xl p-2.5 flex-shrink-0" style={{ background: "#DFF3F1" }}>
-                  <Icon size={20} color={VERDE} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="rd-display text-sm" style={{ fontWeight: 700 }}>{item.titulo}</p>
-                    <span className="text-xs px-2 py-0.5 rounded-full font-bold"
-                      style={item.tag === "cud" ? { background: "#DFF3F1", color: VERDE } : { background: PAPEL, border: "1px solid #E4E2D8", color: GRIS }}>
-                      {item.tag === "cud" ? "Gratis con CUD" : "Gratis para todos"}
-                    </span>
-                  </div>
-                  <p className="text-sm mt-1" style={{ color: "#3C4368" }}>{item.desc}</p>
-                  {rol === "at" && item.salida && (
-                    <button
-                      onClick={() => {
-                        setForm({ ...form, titulo: item.salida.titulo, lugar: item.salida.lugar, zona: item.salida.zona });
-                        setVerCud(false); setTab("publicar");
-                        avisar("Datos precargados en tu salida");
-                      }}
-                      className="mt-2 text-xs font-bold px-3 py-2 rounded-full"
-                      style={{ background: CORAL, color: "#fff" }}>
-                      Crear salida acá
-                    </button>
-                  )}
-                </div>
+            <div key={a.id} className="rd-card rounded-2xl p-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="rd-display text-sm flex-1" style={{ fontWeight: 700 }}>{a.nombre}</p>
+                <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: badge.color + "1A", color: badge.color }}>
+                  {badge.label}
+                </span>
               </div>
+              <p className="text-xs mt-1 flex items-center gap-1" style={{ color: GRIS }}>
+                <MapPin size={12} /> {a.provincia} · {a.zona} <span style={{ color: "#C9CBDE" }}>·</span> {a.tipo}
+              </p>
+              <p className="text-sm mt-2" style={{ color: "#3C4368" }}>{a.descripcion}</p>
+              {a.acompanante && (
+                <p className="text-xs mt-2 flex items-start gap-1.5" style={{ color: "#3C4368" }}>
+                  <Users size={13} color={VERDE} style={{ flexShrink: 0, marginTop: 1 }} /> Acompañante: {a.acompanante}
+                </p>
+              )}
+              {a.reserva && (
+                <p className="text-xs mt-1.5 flex items-start gap-1.5" style={{ color: "#7C6420" }}>
+                  <Clock size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {a.reserva}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {a.poblaciones.map((p) => <ChipPob key={p} poblacion={p} />)}
+              </div>
+              {rol === "at" ? (
+                <button
+                  onClick={() => {
+                    setForm({ ...form, titulo: a.nombre, lugar: `${a.nombre} · ${a.zona}`, zona: zonaParaForm(a) });
+                    setVerCud(false); setTab("publicar");
+                    avisar("Datos precargados en tu salida");
+                  }}
+                  className="mt-3 text-xs font-bold px-3 py-2 rounded-full"
+                  style={{ background: CORAL, color: "#fff" }}>
+                  Crear salida acá
+                </button>
+              ) : (
+                <button
+                  onClick={() => toggleFavoritoCud(a.id)}
+                  className="mt-3 text-xs font-bold px-3 py-2 rounded-full flex items-center gap-1.5"
+                  style={guardado ? { background: "#FCF0D8", color: AMBAR } : { background: "#fff", border: "1px solid #D8D6CB", color: TINTA }}>
+                  <Star size={13} color={guardado ? AMBAR : TINTA} fill={guardado ? AMBAR : "none"} />
+                  {guardado ? "Guardada" : "Guardar"}
+                </button>
+              )}
             </div>
           );
         })}
       </div>
 
       <p className="text-xs text-center mt-4 px-4" style={{ color: "#9BA0BC" }}>
-        Fuente: beneficios de la Ley 22.431 y programas nacionales/CABA. Esta sección se actualiza con la comunidad.
+        Los beneficios pueden cambiar. Verificá condiciones vigentes antes de cada salida. El CUD digital está en la app Mi Argentina.
       </p>
+    </div>
+  );
+
+  /* ================================================================ */
+  /*  PANTALLA: SUGERENCIAS DE LA IA (modo admin, demo)                */
+  /* ================================================================ */
+
+  const cudPendientes = cudActividades.filter((a) => a.estado === "pendiente");
+
+  const aprobarCud = (id) => {
+    setCudActividades((p) => p.map((a) => (a.id === id ? { ...a, estado: "aprobada" } : a)));
+    avisar("Actividad aprobada y publicada en la guía");
+  };
+  const descartarCud = (id) => {
+    setCudActividades((p) => p.filter((a) => a.id !== id));
+    avisar("Sugerencia descartada");
+  };
+
+  const SugerenciasIA = (
+    <div className="px-4 pb-28">
+      <div className="pt-5 flex items-center gap-3">
+        <button onClick={() => setVerAdminCud(false)} className="rounded-full p-2" style={{ background: "#fff", border: "1px solid #E4E2D8" }} aria-label="Volver">
+          <ChevronLeft size={18} />
+        </button>
+        <div>
+          <p className="text-xs font-bold" style={{ color: "#8B6FC9" }}>MODO ADMIN · DEMO</p>
+          <h1 className="rd-display text-xl" style={{ fontWeight: 800 }}>Sugerencias de la IA</h1>
+        </div>
+      </div>
+
+      <div className="rounded-2xl p-3 mt-4 flex gap-2.5" style={{ background: "#F7EFFF" }}>
+        <Sparkles size={16} color="#8B6FC9" style={{ flexShrink: 0, marginTop: 1 }} />
+        <p className="text-xs" style={{ color: "#6B4FA0" }}>
+          Actividades que la IA encontró y todavía no fueron revisadas. Aprobalas para publicarlas en la guía pública, o descartalas.
+        </p>
+      </div>
+
+      {/*
+        En producción, este listado se alimenta llamando a la API de Anthropic
+        con la herramienta de web search para rastrear beneficios CUD nuevos o
+        actualizados. Cada resultado que encuentra cae en una cola de moderación
+        en la base de datos con estado "pendiente" hasta que alguien del equipo
+        lo aprueba o descarta desde esta misma pantalla.
+      */}
+
+      {cudPendientes.length === 0 ? (
+        <div className="rd-card rounded-2xl p-6 text-center mt-4">
+          <p className="rd-display font-bold">No hay sugerencias pendientes</p>
+          <p className="text-sm mt-1" style={{ color: GRIS }}>La IA va a traer nuevas actividades para revisar acá.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3 mt-4">
+          {cudPendientes.map((a) => (
+            <div key={a.id} className="rd-card rounded-2xl p-4">
+              <p className="rd-display text-sm" style={{ fontWeight: 700 }}>{a.nombre}</p>
+              <p className="text-xs mt-1 flex items-center gap-1" style={{ color: GRIS }}>
+                <MapPin size={12} /> {a.provincia} · {a.zona}
+              </p>
+              <p className="text-sm mt-2" style={{ color: "#3C4368" }}>{a.descripcion}</p>
+              <div className="flex gap-2 mt-3">
+                <button onClick={() => aprobarCud(a.id)}
+                  className="flex-1 rounded-full py-2.5 text-xs font-bold flex items-center justify-center gap-1.5"
+                  style={{ background: VERDE, color: "#fff" }}>
+                  <Check size={14} /> Aprobar
+                </button>
+                <button onClick={() => descartarCud(a.id)}
+                  className="flex-1 rounded-full py-2.5 text-xs font-bold flex items-center justify-center gap-1.5"
+                  style={{ background: "#fff", border: "1px solid #D8D6CB", color: "#D9464A" }}>
+                  <X size={14} /> Descartar
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -1908,6 +2116,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
   else if (pantalla === "registroFam") contenido = RegistroFam;
   else if (rol === "at") {
     if (verEnCurso && sesion) contenido = EnCursoAT;
+    else if (verAdminCud) contenido = SugerenciasIA;
     else if (verCud) contenido = Cud;
     else if (verPlanes) contenido = Planes;
     else if (detalleId && salida) contenido = Detalle;
@@ -1918,7 +2127,8 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
     else contenido = PerfilAT;
     barras = TABS_AT;
   } else {
-    if (verCud) contenido = Cud;
+    if (verAdminCud) contenido = SugerenciasIA;
+    else if (verCud) contenido = Cud;
     else if (atSel !== null && at) contenido = PerfilATPublico;
     else if (tabFam === "buscar") contenido = BuscarATs;
     else if (tabFam === "seguimiento") contenido = Seguimiento;
@@ -1954,8 +2164,8 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
               return (
                 <button key={t.id}
                   onClick={() => {
-                    if (rol === "at") { setTab(t.id); setDetalleId(null); setVerPlanes(false); setVerCud(false); setVerEnCurso(false); setPinSelSalida(null); if (t.id !== "chats") setChatId(null); }
-                    else { setTabFam(t.id); setAtSel(null); setEscribiendo(false); setVerCud(false); setPinSel(null); }
+                    if (rol === "at") { setTab(t.id); setDetalleId(null); setVerPlanes(false); setVerCud(false); setVerAdminCud(false); setVerEnCurso(false); setPinSelSalida(null); if (t.id !== "chats") setChatId(null); }
+                    else { setTabFam(t.id); setAtSel(null); setEscribiendo(false); setVerCud(false); setVerAdminCud(false); setPinSel(null); }
                   }}
                   className="flex flex-col items-center gap-1 px-3 py-2" aria-label={t.label}>
                   <Icon size={22} color={activo ? CORAL : "#9BA0BC"} strokeWidth={activo ? 2.4 : 2} />
