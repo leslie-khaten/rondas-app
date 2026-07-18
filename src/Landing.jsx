@@ -305,7 +305,7 @@ export default function Landing() {
       <header className="sticky top-0 z-30 backdrop-blur" style={{ background: "rgba(255,255,255,0.9)", borderBottom: "1px solid #EEEFF7" }}>
         <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <LogoRondas size={34} />
+            <LogoRondas size={46} />
           </div>
           <nav className="hidden lg:flex items-center gap-4 text-sm font-bold" style={{ color: "#4A4F72" }}>
             <a href="#que-es" onClick={scrollTo("que-es")}>Qué es</a>
@@ -348,7 +348,7 @@ export default function Landing() {
             <div className="absolute rounded-[2.5rem]" style={{ width: 160, height: 160, background: CORAL, opacity: 0.12, transform: "rotate(18deg)", bottom: 10, right: 10 }} />
             <div className="relative rounded-[2.5rem] p-2" style={{ background: NAVY, boxShadow: "0 30px 60px -15px rgba(36,43,84,0.35)", width: 300 }}>
               <div className="rounded-[2rem] overflow-hidden" style={{ height: 600, background: PAPEL }}>
-                <div style={{ transform: "scale(0.94)", transformOrigin: "top center", height: "106%" }}>
+                <div aria-hidden="true" style={{ transform: "scale(0.94)", transformOrigin: "top center", height: "106%", pointerEvents: "none" }}>
                   <RondaApp />
                 </div>
               </div>
@@ -542,6 +542,7 @@ export default function Landing() {
                 "Guardián de privacidad con IA en cada publicación",
                 "Verificación manual de cada certificado profesional",
                 "Chat de coordinación propio en cada salida",
+                "Seguro de responsabilidad civil que cubre tu jornada completa de acompañamiento",
               ].map((t) => (
                 <div key={t} className="flex items-center gap-2.5">
                   <Check size={16} color={CORAL} style={{ flexShrink: 0 }} />
@@ -578,8 +579,8 @@ export default function Landing() {
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {[
               { n: "Free", p: "$0", d: "para siempre", f: ["Salidas ilimitadas", "Chats de coordinación", "1 informe con IA por mes"] },
-              { n: "Plus", p: "ARS 9.900", d: "por mes", dest: true, f: ["Informes con IA ilimitados", "Planificador con IA", "Verificación express"] },
-              { n: "Pro", p: "ARS 18.900", d: "por mes", f: ["Todo lo de Plus", "Agenda y recordatorios", "Exportación para obras sociales"] },
+              { n: "Plus", p: "ARS 9.900", d: "por mes", dest: true, f: ["Informes con IA ilimitados", "Planificador con IA", "Verificación express", "Seguro de responsabilidad civil (opcional)"] },
+              { n: "Pro", p: "ARS 18.900", d: "por mes", f: ["Todo lo de Plus", "Agenda y recordatorios", "Exportación para obras sociales", "Seguro de responsabilidad civil incluido"] },
             ].map((pl) => (
               <div key={pl.n} className="rounded-3xl p-6 bg-white relative" style={{ border: pl.dest ? "2px solid " + CORAL : "1px solid #E7E8F3" }}>
                 {pl.dest && <span className="absolute text-xs font-bold px-3 py-1 rounded-full" style={{ top: -10, right: 20, background: CORAL, color: "#fff" }}>Más elegido</span>}
