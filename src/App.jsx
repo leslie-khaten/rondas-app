@@ -444,7 +444,6 @@ export default function RondaApp() {
       await supabase.from("profiles").update({
         plan: datosPlan.plan,
         seguro_incluido: datosPlan.seguroIncluido,
-        has_own_insurance: datosPlan.seguroPropio,
       }).eq("id", userId);
       setPlan(datosPlan.plan);
     }
@@ -510,9 +509,7 @@ export default function RondaApp() {
   const [planOnboarding, setPlanOnboarding] = useState(null); // free | plus | pro
   const [seguroPlus, setSeguroPlus] = useState(false);
   const [seguroPro, setSeguroPro] = useState(true);
-  const [seguroPropio, setSeguroPropio] = useState(false);
-  const [polizaAdjuntada, setPolizaAdjuntada] = useState(false);
-  const [antecedentesAdjuntados, setAntecedentesAdjuntados] = useState(false);
+  const [antecedentesFree, setAntecedentesFree] = useState(false); // certificado propio, solo plan Free
   const [checkoutOnboarding, setCheckoutOnboarding] = useState(null); // { plan, precioBase, seguroIncluido, total } | null
   const [verCud, setVerCud] = useState(false);
   const [verAdminCud, setVerAdminCud] = useState(false);
@@ -806,10 +803,8 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
 
   const fmtARS = (n) => "ARS " + n.toLocaleString("es-AR");
 
-  const seguroPlusEfectivo = !seguroPropio && seguroPlus;
-  const seguroProEfectivo = !seguroPropio && seguroPro;
-  const precioPlusTotal = 9900 + (seguroPlusEfectivo ? 9900 : 0);
-  const precioProTotal = 18900 + (seguroProEfectivo ? 9900 : 0);
+  const precioPlusTotal = 9900 + (seguroPlus ? 9900 : 0);
+  const precioProTotal = 18900 + (seguroPro ? 9900 : 0);
 
   const elegirPlanOnboarding = (id) => {
     if (id === "free") {
@@ -818,11 +813,11 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
     }
     if (id === "plus") {
       setPlanOnboarding("plus");
-      setCheckoutOnboarding({ plan: "plus", nombre: "Plus", precioBase: 9900, seguroIncluido: seguroPlusEfectivo, total: precioPlusTotal });
+      setCheckoutOnboarding({ plan: "plus", nombre: "Plus", precioBase: 9900, seguroIncluido: seguroPlus, total: precioPlusTotal });
       return;
     }
     setPlanOnboarding("pro");
-    setCheckoutOnboarding({ plan: "pro", nombre: "Pro", precioBase: 18900, seguroIncluido: seguroProEfectivo, total: precioProTotal });
+    setCheckoutOnboarding({ plan: "pro", nombre: "Pro", precioBase: 18900, seguroIncluido: seguroPro, total: precioProTotal });
   };
 
   const PlanesOnboarding = (
@@ -887,7 +882,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
               ))}
             </ul>
             <div className="mt-3 pt-3" style={{ borderTop: "1px solid #F0F1F9" }}>
-              <Checkbox checked={seguroPlusEfectivo} disabled={seguroPropio} onChange={() => setSeguroPlus(!seguroPlus)}>
+              <Checkbox checked={seguroPlus} onChange={() => setSeguroPlus(!seguroPlus)}>
                 Sumar seguro de responsabilidad civil <span style={{ color: "#9BA0BC" }}>(+{fmtARS(9900)}/mes)</span>
               </Checkbox>
             </div>
@@ -913,16 +908,8 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
                 </li>
               ))}
             </ul>
-            <button type="button" onClick={() => setAntecedentesAdjuntados(!antecedentesAdjuntados)}
-              className="rounded-xl px-3 py-2.5 text-xs font-semibold flex items-center gap-2 justify-center w-full mt-2"
-              style={antecedentesAdjuntados
-                ? { background: "#DFF3F1", color: VERDE, border: "1px solid " + VERDE }
-                : { background: "#fff", border: "1px solid " + VERDE, color: VERDE }}>
-              {antecedentesAdjuntados ? <FileCheck size={14} /> : <Upload size={14} />}
-              {antecedentesAdjuntados ? "certificado-antecedentes.pdf adjuntado" : "Adjuntar certificado de antecedentes penales"}
-            </button>
             <div className="mt-3 pt-3" style={{ borderTop: "1px solid #F0F1F9" }}>
-              <Checkbox checked={seguroProEfectivo} disabled={seguroPropio} onChange={() => setSeguroPro(!seguroPro)}>
+              <Checkbox checked={seguroPro} onChange={() => setSeguroPro(!seguroPro)}>
                 Sumar seguro de responsabilidad civil <span style={{ color: "#9BA0BC" }}>(+{fmtARS(9900)}/mes)</span>
               </Checkbox>
             </div>
@@ -948,24 +935,6 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
             </button>
           </div>
 
-          {/* SEGURO PROPIO (global) */}
-          <div className="rounded-2xl p-4" style={{ background: "#fff", border: "1px solid #E4E2D8" }}>
-            <Checkbox checked={seguroPropio} onChange={() => setSeguroPropio(!seguroPropio)}>
-              <span className="font-semibold">Ya tengo seguro propio</span>
-              <p className="text-xs mt-0.5" style={{ color: GRIS }}>Destilda el addon de seguro en Plus y Pro y descuenta {fmtARS(9900)} del precio mostrado.</p>
-            </Checkbox>
-            {seguroPropio && (
-              <button type="button" onClick={() => setPolizaAdjuntada(!polizaAdjuntada)}
-                className="mt-3 rounded-xl px-3 py-3 text-sm font-semibold w-full flex items-center gap-2 justify-center"
-                style={polizaAdjuntada
-                  ? { background: "#DFF3F1", color: VERDE, border: "1px solid " + VERDE }
-                  : { background: "#fff", border: "1px solid " + VERDE, color: VERDE }}>
-                {polizaAdjuntada ? <FileCheck size={16} /> : <Upload size={16} />}
-                {polizaAdjuntada ? "comprobante-poliza.pdf adjuntado" : "Adjuntar comprobante de tu póliza"}
-              </button>
-            )}
-          </div>
-
           <p className="text-xs text-center px-4" style={{ color: "#9BA0BC" }}>
             Suscripción vía MercadoPago. Cancelás cuando quieras. La verificación de certificados es gratuita en todos los planes.
           </p>
@@ -981,12 +950,6 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
               <div className="flex items-center justify-between text-sm">
                 <span style={{ color: "#3C4368" }}>Seguro de responsabilidad civil</span>
                 <span className="font-semibold">+{fmtARS(9900)}/mes</span>
-              </div>
-            )}
-            {seguroPropio && (
-              <div className="flex items-center justify-between text-sm">
-                <span style={{ color: "#3C4368" }}>Seguro propio</span>
-                <span className="font-semibold" style={{ color: VERDE }}>Sin cargo</span>
               </div>
             )}
             <div className="flex items-center justify-between pt-3" style={{ borderTop: "1px solid #F0F1F9" }}>
@@ -1093,6 +1056,22 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
               Lo revisamos manualmente. Tu perfil se publica con el badge "Verificación en curso" hasta la aprobación.
             </span>
           </Campo>
+
+          {planOnboarding === "free" && (
+            <Campo label="Certificado de antecedentes penales (opcional)">
+              <button type="button" onClick={() => setAntecedentesFree(!antecedentesFree)}
+                className="rounded-xl px-3 py-3 text-sm font-semibold flex items-center gap-2 justify-center"
+                style={antecedentesFree
+                  ? { background: "#DFF3F1", color: VERDE, border: "1px solid " + VERDE }
+                  : { background: "#fff", border: "1px solid " + VERDE, color: VERDE }}>
+                {antecedentesFree ? <FileCheck size={16} /> : <Upload size={16} />}
+                {antecedentesFree ? "certificado-antecedentes.pdf adjuntado" : "Adjuntar certificado"}
+              </button>
+              <span className="text-xs" style={{ color: "#9BA0BC", fontSize: 11 }}>
+                En Plus y Pro lo tramitamos nosotros sin costo extra.
+              </span>
+            </Campo>
+          )}
         </CardSeccion>
 
         {errorAuth && (
@@ -1110,7 +1089,6 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
           const ok = await registrarse("at", regAT, {
             plan: planOnboarding || "free",
             seguroIncluido: planOnboarding === "free" ? false : !!checkoutOnboarding?.seguroIncluido,
-            seguroPropio,
           });
           if (ok) setTab("salidas");
         }}>
