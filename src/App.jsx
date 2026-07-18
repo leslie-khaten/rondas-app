@@ -5,7 +5,7 @@ import {
   ShieldCheck, FileCheck, Inbox, Star, Sparkles, ShieldAlert,
   Crown, Building2, Check, Bus, TreePine, Landmark, Accessibility,
   Map as MapIcon, List, ChevronRight, Navigation, Phone, Play, Square, X,
-  LogOut, Loader2,
+  LogOut, Loader2, Eye, EyeOff, Upload,
 } from "lucide-react";
 import { supabase, errorAuthEnEspanol } from "./lib/supabase.js";
 import { APIProvider, Map as GoogleMap, AdvancedMarker } from "@vis.gl/react-google-maps";
@@ -296,8 +296,9 @@ function MultiChips({ opciones, valores, onToggle, colorMap }) {
         const c = colorMap ? colorMap[o] : VERDE;
         return (
           <button key={o} type="button" onClick={() => onToggle(o)}
-            className="text-xs px-3 py-2 rounded-full font-semibold"
+            className="text-xs px-3 py-2 rounded-full font-semibold flex items-center gap-1.5"
             style={activo ? { background: c || VERDE, color: "#fff" } : { background: "#fff", border: "1px solid #D8D6CB", color: TINTA }}>
+            {activo && <Check size={12} strokeWidth={3} />}
             {o}
           </button>
         );
@@ -308,17 +309,42 @@ function MultiChips({ opciones, valores, onToggle, colorMap }) {
 
 function Campo({ label, children }) {
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-xs font-bold">{label}</span>
+    <label className="flex flex-col gap-1.5">
+      <span className="text-xs font-medium" style={{ color: GRIS }}>{label}</span>
       {children}
     </label>
   );
 }
 
-function BotonPrimario({ onClick, children, icon: Icon }) {
+function CardSeccion({ titulo, children }) {
+  return (
+    <div className="flex flex-col gap-4" style={{ background: "#fff", borderRadius: 14, padding: 16, boxShadow: "0 2px 8px rgba(46,49,96,0.06)" }}>
+      <p className="text-xs font-semibold" style={{ color: VERDE }}>{titulo}</p>
+      {children}
+    </div>
+  );
+}
+
+function CampoPassword({ label, value, onChange, placeholder, visible, onToggleVisible }) {
+  return (
+    <Campo label={label}>
+      <div className="relative">
+        <input type={visible ? "text" : "password"} className="rd-input rounded-xl px-3 py-3 text-sm" style={{ paddingRight: 40 }}
+          placeholder={placeholder} value={value} onChange={onChange} />
+        <button type="button" onClick={onToggleVisible} aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+          className="absolute" style={{ right: 12, top: "50%", transform: "translateY(-50%)", color: GRIS }}>
+          {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
+    </Campo>
+  );
+}
+
+function BotonPrimario({ onClick, children, icon: Icon, color = CORAL }) {
+  const sombra = color === VERDE ? "rgba(23,163,152,0.3)" : "rgba(240,86,90,0.3)";
   return (
     <button onClick={onClick} className="w-full rounded-2xl py-4 font-bold text-sm flex items-center justify-center gap-2"
-      style={{ background: CORAL, color: "#fff", boxShadow: "0 4px 12px rgba(240,86,90,0.3)" }}>
+      style={{ background: color, color: "#fff", boxShadow: `0 4px 12px ${sombra}` }}>
       {Icon && <Icon size={16} />}{children}
     </button>
   );
@@ -340,6 +366,8 @@ export default function RondaApp() {
   const [cargandoAuth, setCargandoAuth] = useState(false);
   const [errorAuth, setErrorAuth] = useState("");
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
+  const [verPassAT, setVerPassAT] = useState(false);
+  const [verPassFam, setVerPassFam] = useState(false);
 
   useEffect(() => {
     let activo = true;
@@ -650,19 +678,16 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
   const Bienvenida = (
     <div className="px-5 flex flex-col" style={{ minHeight: "100%" }}>
       <div className="flex flex-col items-center text-center" style={{ paddingTop: 56 }}>
-        <LogoRondas size={110} />
-        <h1 className="rd-display mt-2" style={{ fontSize: 46, fontWeight: 800, letterSpacing: "-0.01em", lineHeight: 1, color: NAVY }}>rondas</h1>
-        <p className="text-sm mt-1 font-bold" style={{ color: VERDE }}>
-          Red de acompañamiento terapéutico
-        </p>
-        <p className="text-sm mt-3 px-6" style={{ color: GRIS }}>
+        <img src="/logo-full-transparent.png" width={170} height={170} alt="rondas — Red de acompañamiento terapéutico" style={{ objectFit: "contain" }} />
+        <p className="text-sm mt-2 px-6" style={{ color: GRIS }}>
           Salidas compartidas, profesionales verificados.
         </p>
       </div>
 
       <div className="flex flex-col gap-3 mt-10">
         <button onClick={() => { setRol("at"); setPantalla("registroAT"); }}
-          className="rd-card rounded-2xl p-5 text-left flex items-start gap-4 w-full">
+          className="rd-card rounded-2xl p-5 text-left flex items-start gap-4 w-full"
+          style={{ borderLeft: "3px solid " + VERDE, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}>
           <div className="rounded-2xl p-3 flex-shrink-0" style={{ background: "#DFF3F1" }}>
             <Users size={22} color={VERDE} />
           </div>
@@ -673,7 +698,8 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
         </button>
 
         <button onClick={() => { setRol("familia"); setPantalla("registroFam"); }}
-          className="rd-card rounded-2xl p-5 text-left flex items-start gap-4 w-full">
+          className="rd-card rounded-2xl p-5 text-left flex items-start gap-4 w-full"
+          style={{ borderLeft: "3px solid " + AMBAR, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}>
           <div className="rounded-2xl p-3 flex-shrink-0" style={{ background: "#FCF0D8" }}>
             <HeartHandshake size={22} color={AMBAR} />
           </div>
@@ -756,65 +782,68 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
       </div>
 
       <div className="flex flex-col gap-4 mt-5">
-        <Campo label="Nombre y apellido">
-          <input className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="Ej: Sofía Paredes"
-            value={regAT.nombre} onChange={(e) => setRegAT({ ...regAT, nombre: e.target.value })} />
-        </Campo>
+        <CardSeccion titulo="Tu cuenta">
+          <Campo label="Nombre y apellido">
+            <input className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="Ej: Sofía Paredes"
+              value={regAT.nombre} onChange={(e) => setRegAT({ ...regAT, nombre: e.target.value })} />
+          </Campo>
 
-        <Campo label="Email">
-          <input type="email" className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="tu@email.com"
-            value={regAT.email} onChange={(e) => setRegAT({ ...regAT, email: e.target.value })} />
-        </Campo>
+          <Campo label="Email">
+            <input type="email" className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="tu@email.com"
+              value={regAT.email} onChange={(e) => setRegAT({ ...regAT, email: e.target.value })} />
+          </Campo>
 
-        <Campo label="Contraseña">
-          <input type="password" className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="Mínimo 6 caracteres"
-            value={regAT.password} onChange={(e) => setRegAT({ ...regAT, password: e.target.value })} />
-        </Campo>
+          <CampoPassword label="Contraseña" placeholder="Mínimo 6 caracteres"
+            value={regAT.password} onChange={(e) => setRegAT({ ...regAT, password: e.target.value })}
+            visible={verPassAT} onToggleVisible={() => setVerPassAT(!verPassAT)} />
+        </CardSeccion>
 
-        <div className="flex gap-3">
+        <CardSeccion titulo="Tu perfil profesional">
           <Campo label="Provincia">
             <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regAT.provincia}
               onChange={(e) => setRegAT({ ...regAT, provincia: e.target.value, zona: PROVINCIAS[e.target.value][0] })}>
               {Object.keys(PROVINCIAS).map((p) => <option key={p}>{p}</option>)}
             </select>
           </Campo>
-          <Campo label="Ciudad / localidad donde trabajás">
+          <Campo label="Ciudad">
             <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regAT.zona} onChange={(e) => setRegAT({ ...regAT, zona: e.target.value })}>
               {PROVINCIAS[regAT.provincia].map((z) => <option key={z}>{z}</option>)}
             </select>
           </Campo>
-        </div>
-        <span className="text-xs -mt-2" style={{ color: "#9BA0BC" }}>Se muestra tu zona, nunca una dirección exacta.</span>
+          <span className="text-xs -mt-2" style={{ color: "#9BA0BC" }}>Se muestra tu zona, nunca una dirección exacta.</span>
 
-        <Campo label="¿Con qué poblaciones trabajás?">
-          <MultiChips opciones={POBLACIONES} valores={regAT.poblaciones} colorMap={POB_COLOR}
-            onToggle={(v) => setRegAT({ ...regAT, poblaciones: toggle(regAT.poblaciones, v) })} />
-        </Campo>
+          <Campo label="¿Con qué poblaciones trabajás?">
+            <MultiChips opciones={POBLACIONES} valores={regAT.poblaciones} colorMap={POB_COLOR}
+              onToggle={(v) => setRegAT({ ...regAT, poblaciones: toggle(regAT.poblaciones, v) })} />
+          </Campo>
 
-        <Campo label="Áreas de especialidad">
-          <MultiChips opciones={AREAS} valores={regAT.areas}
-            onToggle={(v) => setRegAT({ ...regAT, areas: toggle(regAT.areas, v) })} />
-        </Campo>
+          <Campo label="Áreas de especialidad">
+            <MultiChips opciones={AREAS} valores={regAT.areas}
+              onToggle={(v) => setRegAT({ ...regAT, areas: toggle(regAT.areas, v) })} />
+          </Campo>
 
-        <Campo label="Años de experiencia">
-          <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regAT.exp} onChange={(e) => setRegAT({ ...regAT, exp: e.target.value })}>
-            {["Menos de 1 año", "1 a 3 años", "3 a 7 años", "Más de 7 años"].map((o) => <option key={o}>{o}</option>)}
-          </select>
-        </Campo>
+          <Campo label="Años de experiencia">
+            <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regAT.exp} onChange={(e) => setRegAT({ ...regAT, exp: e.target.value })}>
+              {["Menos de 1 año", "1 a 3 años", "3 a 7 años", "Más de 7 años"].map((o) => <option key={o}>{o}</option>)}
+            </select>
+          </Campo>
+        </CardSeccion>
 
-        <Campo label="Certificación de AT">
-          <button type="button" onClick={() => setRegAT({ ...regAT, cert: !regAT.cert })}
-            className="rounded-xl px-3 py-4 text-sm font-semibold flex items-center gap-2 justify-center"
-            style={regAT.cert
-              ? { background: "#DFF3F1", color: VERDE, border: "1px solid " + VERDE }
-              : { background: "#fff", border: "1px dashed #B8B6AA", color: GRIS }}>
-            <FileCheck size={16} />
-            {regAT.cert ? "certificado-at.pdf adjuntado" : "Adjuntar certificado (PDF o foto)"}
-          </button>
-          <span className="text-xs" style={{ color: "#9BA0BC" }}>
-            Lo revisamos manualmente. Tu perfil se publica con el badge "Verificación en curso" hasta la aprobación.
-          </span>
-        </Campo>
+        <CardSeccion titulo="Certificación">
+          <Campo label="Certificación de AT">
+            <button type="button" onClick={() => setRegAT({ ...regAT, cert: !regAT.cert })}
+              className="rounded-xl px-3 py-3 text-sm font-semibold flex items-center gap-2 justify-center"
+              style={regAT.cert
+                ? { background: "#DFF3F1", color: VERDE, border: "1px solid " + VERDE }
+                : { background: "#fff", border: "1px solid " + VERDE, color: VERDE }}>
+              {regAT.cert ? <FileCheck size={16} /> : <Upload size={16} />}
+              {regAT.cert ? "certificado-at.pdf adjuntado" : "Adjuntar certificado"}
+            </button>
+            <span className="text-xs" style={{ color: "#9BA0BC", fontSize: 11 }}>
+              Lo revisamos manualmente. Tu perfil se publica con el badge "Verificación en curso" hasta la aprobación.
+            </span>
+          </Campo>
+        </CardSeccion>
 
         {errorAuth && (
           <div className="rounded-2xl p-3 text-xs font-semibold" style={{ background: "#FCE4E4", color: "#B3261E" }}>
@@ -822,7 +851,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
           </div>
         )}
 
-        <BotonPrimario onClick={async () => {
+        <BotonPrimario color={VERDE} onClick={async () => {
           if (!regAT.nombre.trim()) { setErrorAuth("Contanos tu nombre."); return; }
           if (!regAT.email.trim()) { setErrorAuth("Ingresá tu email."); return; }
           if (regAT.password.length < 6) { setErrorAuth("La contraseña debe tener al menos 6 caracteres."); return; }
@@ -854,63 +883,64 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
       </div>
 
       <div className="flex flex-col gap-4 mt-5">
-        <Campo label="Tu nombre">
-          <input className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="Ej: Ana Gutiérrez"
-            value={regFam.nombre} onChange={(e) => setRegFam({ ...regFam, nombre: e.target.value })} />
-        </Campo>
+        <CardSeccion titulo="Tu cuenta">
+          <Campo label="Tu nombre">
+            <input className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="Ej: Ana Gutiérrez"
+              value={regFam.nombre} onChange={(e) => setRegFam({ ...regFam, nombre: e.target.value })} />
+          </Campo>
 
-        <Campo label="Email">
-          <input type="email" className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="tu@email.com"
-            value={regFam.email} onChange={(e) => setRegFam({ ...regFam, email: e.target.value })} />
-        </Campo>
+          <Campo label="Email">
+            <input type="email" className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="tu@email.com"
+              value={regFam.email} onChange={(e) => setRegFam({ ...regFam, email: e.target.value })} />
+          </Campo>
 
-        <Campo label="Contraseña">
-          <input type="password" className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="Mínimo 6 caracteres"
-            value={regFam.password} onChange={(e) => setRegFam({ ...regFam, password: e.target.value })} />
-        </Campo>
+          <CampoPassword label="Contraseña" placeholder="Mínimo 6 caracteres"
+            value={regFam.password} onChange={(e) => setRegFam({ ...regFam, password: e.target.value })}
+            visible={verPassFam} onToggleVisible={() => setVerPassFam(!verPassFam)} />
+        </CardSeccion>
 
-        <div className="flex gap-3">
-          <Campo label="Tu provincia">
+        <CardSeccion titulo="Tu búsqueda">
+          <Campo label="Provincia">
             <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regFam.provincia}
               onChange={(e) => setRegFam({ ...regFam, provincia: e.target.value, zona: PROVINCIAS[e.target.value][0] })}>
               {Object.keys(PROVINCIAS).map((p) => <option key={p}>{p}</option>)}
             </select>
           </Campo>
-          <Campo label="Tu ciudad / localidad">
+          <Campo label="Ciudad">
             <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regFam.zona} onChange={(e) => setRegFam({ ...regFam, zona: e.target.value })}>
               {PROVINCIAS[regFam.provincia].map((z) => <option key={z}>{z}</option>)}
             </select>
           </Campo>
-        </div>
-        <span className="text-xs -mt-2" style={{ color: "#9BA0BC" }}>Usamos tu zona para mostrarte ATs cercanos. Nunca pedimos tu dirección.</span>
+          <span className="text-xs -mt-2" style={{ color: "#9BA0BC" }}>Usamos tu zona para mostrarte ATs cercanos. Nunca pedimos tu dirección.</span>
 
-        <div className="flex gap-3">
-          <Campo label="¿Para quién buscás?">
-            <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regFam.para} onChange={(e) => setRegFam({ ...regFam, para: e.target.value })}>
-              {["Mi hijo/a", "Un familiar", "Para mí"].map((o) => <option key={o}>{o}</option>)}
+          <div className="flex gap-3">
+            <Campo label="¿Para quién buscás?">
+              <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regFam.para} onChange={(e) => setRegFam({ ...regFam, para: e.target.value })}>
+                {["Mi hijo/a", "Un familiar", "Para mí"].map((o) => <option key={o}>{o}</option>)}
+              </select>
+            </Campo>
+            <Campo label="Edad aproximada">
+              <input className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="Ej: 8 años"
+                value={regFam.edad} onChange={(e) => setRegFam({ ...regFam, edad: e.target.value })} />
+            </Campo>
+          </div>
+
+          <Campo label="Población">
+            <MultiChips opciones={POBLACIONES} valores={[regFam.poblacion]} colorMap={POB_COLOR}
+              onToggle={(v) => setRegFam({ ...regFam, poblacion: v })} />
+          </Campo>
+
+          <Campo label="Área de acompañamiento (opcional)">
+            <MultiChips opciones={AREAS} valores={regFam.areas}
+              onToggle={(v) => setRegFam({ ...regFam, areas: toggle(regFam.areas, v) })} />
+          </Campo>
+
+          <Campo label="Preferencia horaria">
+            <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regFam.horario} onChange={(e) => setRegFam({ ...regFam, horario: e.target.value })}>
+              {["Mañanas", "Tardes", "Fines de semana", "Flexible"].map((o) => <option key={o}>{o}</option>)}
             </select>
           </Campo>
-          <Campo label="Edad aproximada">
-            <input className="rd-input rounded-xl px-3 py-3 text-sm" placeholder="Ej: 8 años"
-              value={regFam.edad} onChange={(e) => setRegFam({ ...regFam, edad: e.target.value })} />
-          </Campo>
-        </div>
-
-        <Campo label="Población">
-          <MultiChips opciones={POBLACIONES} valores={[regFam.poblacion]} colorMap={POB_COLOR}
-            onToggle={(v) => setRegFam({ ...regFam, poblacion: v })} />
-        </Campo>
-
-        <Campo label="Área de acompañamiento (opcional)">
-          <MultiChips opciones={AREAS} valores={regFam.areas}
-            onToggle={(v) => setRegFam({ ...regFam, areas: toggle(regFam.areas, v) })} />
-        </Campo>
-
-        <Campo label="Preferencia horaria">
-          <select className="rd-input rounded-xl px-3 py-3 text-sm" value={regFam.horario} onChange={(e) => setRegFam({ ...regFam, horario: e.target.value })}>
-            {["Mañanas", "Tardes", "Fines de semana", "Flexible"].map((o) => <option key={o}>{o}</option>)}
-          </select>
-        </Campo>
+        </CardSeccion>
 
         <div className="rounded-2xl p-4 flex gap-3" style={{ background: "#FCF0D8" }}>
           <ShieldCheck size={18} color={AMBAR} style={{ flexShrink: 0, marginTop: 2 }} />
@@ -925,7 +955,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
           </div>
         )}
 
-        <BotonPrimario onClick={async () => {
+        <BotonPrimario color={VERDE} onClick={async () => {
           if (!regFam.nombre.trim()) { setErrorAuth("Contanos tu nombre."); return; }
           if (!regFam.email.trim()) { setErrorAuth("Ingresá tu email."); return; }
           if (regFam.password.length < 6) { setErrorAuth("La contraseña debe tener al menos 6 caracteres."); return; }
