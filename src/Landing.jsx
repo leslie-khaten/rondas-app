@@ -305,7 +305,7 @@ export default function Landing() {
       <header className="sticky top-0 z-30 backdrop-blur" style={{ background: "rgba(255,255,255,0.9)", borderBottom: "1px solid #EEEFF7" }}>
         <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <LogoRondas size={46} />
+            <LogoRondas size={64} />
           </div>
           <nav className="hidden lg:flex items-center gap-4 text-sm font-bold" style={{ color: "#4A4F72" }}>
             <a href="#que-es" onClick={scrollTo("que-es")}>Qué es</a>
