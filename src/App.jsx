@@ -5,7 +5,7 @@ import {
   ShieldCheck, FileCheck, Inbox, Star, Sparkles, ShieldAlert,
   Crown, Building2, Check, Bus, TreePine, Landmark, Accessibility,
   Map as MapIcon, List, ChevronRight, Navigation, Phone, Play, Square, X,
-  LogOut, Loader2, Eye, EyeOff, Upload,
+  LogOut, Loader2, Eye, EyeOff, Upload, CreditCard,
 } from "lucide-react";
 import { supabase, errorAuthEnEspanol } from "./lib/supabase.js";
 import { APIProvider, Map as GoogleMap, AdvancedMarker } from "@vis.gl/react-google-maps";
@@ -308,6 +308,20 @@ function MultiChips({ opciones, valores, onToggle, colorMap }) {
   );
 }
 
+function Checkbox({ checked, onChange, disabled, children }) {
+  return (
+    <button type="button" disabled={disabled} onClick={onChange}
+      className="flex items-start gap-2.5 text-left w-full"
+      style={{ opacity: disabled ? 0.5 : 1, cursor: disabled ? "not-allowed" : "pointer" }}>
+      <span className="flex-shrink-0 flex items-center justify-center rounded-md"
+        style={{ width: 20, height: 20, marginTop: 1, background: checked ? VERDE : "#fff", border: "1.5px solid " + (checked ? VERDE : "#D9DBEC") }}>
+        {checked && <Check size={13} strokeWidth={3} color="#fff" />}
+      </span>
+      <span className="text-sm" style={{ color: "#3C4368" }}>{children}</span>
+    </button>
+  );
+}
+
 function Campo({ label, children }) {
   return (
     <label className="flex flex-col gap-1.5">
@@ -405,7 +419,7 @@ export default function RondaApp() {
   /* registro familia */
   const [regFam, setRegFam] = useState({ nombre: "", email: "", password: "", provincia: "Buenos Aires (CABA, GBA e interior)", zona: "Palermo", para: "Mi hijo/a", poblacion: "Niñez", edad: "", areas: [], horario: "Tardes" });
 
-  const registrarse = async (rolNuevo, datos) => {
+  const registrarse = async (rolNuevo, datos, datosPlan = null) => {
     setErrorAuth(""); setCargandoAuth(true);
     const { data, error } = await supabase.auth.signUp({
       email: datos.email,
@@ -424,6 +438,17 @@ export default function RondaApp() {
     });
     setCargandoAuth(false);
     if (error) { setErrorAuth(errorAuthEnEspanol(error)); return false; }
+
+    const userId = data?.user?.id || data?.session?.user?.id;
+    if (userId && datosPlan) {
+      await supabase.from("profiles").update({
+        plan: datosPlan.plan,
+        seguro_incluido: datosPlan.seguroIncluido,
+        has_own_insurance: datosPlan.seguroPropio,
+      }).eq("id", userId);
+      setPlan(datosPlan.plan);
+    }
+
     if (!data.session) {
       avisar("Cuenta creada. Revisá tu email para confirmarla.");
       setPantalla("login");
@@ -480,6 +505,15 @@ export default function RondaApp() {
   const [revision, setRevision] = useState(null); // { riesgo, hallazgos[], version_segura }
   const [plan, setPlan] = useState("free"); // free | plus | pro
   const [verPlanes, setVerPlanes] = useState(false);
+
+  /* planes en el onboarding (antes de crear la cuenta AT) */
+  const [planOnboarding, setPlanOnboarding] = useState(null); // free | plus | pro
+  const [seguroPlus, setSeguroPlus] = useState(false);
+  const [seguroPro, setSeguroPro] = useState(true);
+  const [seguroPropio, setSeguroPropio] = useState(false);
+  const [polizaAdjuntada, setPolizaAdjuntada] = useState(false);
+  const [antecedentesAdjuntados, setAntecedentesAdjuntados] = useState(false);
+  const [checkoutOnboarding, setCheckoutOnboarding] = useState(null); // { plan, precioBase, seguroIncluido, total } | null
   const [verCud, setVerCud] = useState(false);
   const [verAdminCud, setVerAdminCud] = useState(false);
   const [cudActividades, setCudActividades] = useState(CUD_ACTIVIDADES_INICIALES);
@@ -686,7 +720,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
       </div>
 
       <div className="flex flex-col gap-3 mt-10">
-        <button onClick={() => { setRol("at"); setPantalla("registroAT"); }}
+        <button onClick={() => { setRol("at"); setCheckoutOnboarding(null); setPantalla("planesOnboarding"); }}
           className="rd-card rounded-2xl p-5 text-left flex items-start gap-4 w-full"
           style={{ borderLeft: "3px solid " + VERDE, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}>
           <div className="rounded-2xl p-3 flex-shrink-0" style={{ background: "#DFF3F1" }}>
@@ -767,13 +801,221 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
   );
 
   /* ================================================================ */
+  /*  PANTALLA: PLANES EN EL ONBOARDING (AT, antes de crear la cuenta) */
+  /* ================================================================ */
+
+  const fmtARS = (n) => "ARS " + n.toLocaleString("es-AR");
+
+  const seguroPlusEfectivo = !seguroPropio && seguroPlus;
+  const seguroProEfectivo = !seguroPropio && seguroPro;
+  const precioPlusTotal = 9900 + (seguroPlusEfectivo ? 9900 : 0);
+  const precioProTotal = 18900 + (seguroProEfectivo ? 9900 : 0);
+
+  const elegirPlanOnboarding = (id) => {
+    if (id === "free") {
+      setPlanOnboarding("free"); setCheckoutOnboarding(null); setPantalla("registroAT");
+      return;
+    }
+    if (id === "plus") {
+      setPlanOnboarding("plus");
+      setCheckoutOnboarding({ plan: "plus", nombre: "Plus", precioBase: 9900, seguroIncluido: seguroPlusEfectivo, total: precioPlusTotal });
+      return;
+    }
+    setPlanOnboarding("pro");
+    setCheckoutOnboarding({ plan: "pro", nombre: "Pro", precioBase: 18900, seguroIncluido: seguroProEfectivo, total: precioProTotal });
+  };
+
+  const PlanesOnboarding = (
+    <div className="px-4 pb-28">
+      <div className="pt-5 flex items-center gap-3">
+        <button onClick={() => checkoutOnboarding ? setCheckoutOnboarding(null) : setPantalla("bienvenida")}
+          className="rounded-full p-2" style={{ background: "#fff", border: "1px solid #E4E2D8" }} aria-label="Volver">
+          <ChevronLeft size={18} />
+        </button>
+        <div>
+          <p className="text-xs font-bold" style={{ color: VERDE }}>REGISTRO · ACOMPAÑANTE TERAPÉUTICO/A</p>
+          <h1 className="rd-display text-xl" style={{ fontWeight: 800 }}>{checkoutOnboarding ? "Confirmá tu plan" : "Elegí tu plan"}</h1>
+        </div>
+      </div>
+
+      {!checkoutOnboarding ? (
+        <div className="flex flex-col gap-3 mt-5">
+          {/* FREE */}
+          <div className="rounded-2xl p-4" style={{ background: "#fff", border: "1px solid #E4E2D8" }}>
+            <div className="flex items-baseline justify-between">
+              <p className="rd-display text-lg" style={{ fontWeight: 800 }}>Free</p>
+              <div className="text-right">
+                <p className="rd-display text-lg" style={{ fontWeight: 800, color: VERDE }}>$0</p>
+                <p style={{ fontSize: 10, color: "#9BA0BC" }}>para siempre</p>
+              </div>
+            </div>
+            <ul className="flex flex-col gap-1.5 mt-3">
+              {["Perfil verificado", "Salidas ilimitadas", "Chats de coordinación", "Guardián de privacidad con IA", "1 informe con IA por mes", "Hasta 2 solicitudes de familias por mes"].map((f) => (
+                <li key={f} className="text-sm flex items-start gap-2" style={{ color: "#3C4368" }}>
+                  <Check size={14} color={VERDE} style={{ flexShrink: 0, marginTop: 3 }} />{f}
+                </li>
+              ))}
+              {["Sin seguro de responsabilidad civil", "Sin antecedentes penales incluidos"].map((f) => (
+                <li key={f} className="text-sm flex items-start gap-2" style={{ color: "#B3B8D1" }}>
+                  <X size={14} style={{ flexShrink: 0, marginTop: 3 }} />{f}
+                </li>
+              ))}
+            </ul>
+            <button onClick={() => elegirPlanOnboarding("free")}
+              className="w-full rounded-2xl py-3 font-bold text-sm mt-3" style={{ background: "#fff", border: "1px solid " + VERDE, color: VERDE }}>
+              Elegir Free
+            </button>
+          </div>
+
+          {/* PLUS */}
+          <div className="rounded-2xl p-4 relative" style={{ background: "#fff", border: "2px solid " + CORAL }}>
+            <span className="absolute text-xs font-bold px-3 py-1 rounded-full" style={{ top: -10, right: 16, background: CORAL, color: "#fff" }}>
+              Más elegido
+            </span>
+            <div className="flex items-baseline justify-between">
+              <p className="rd-display text-lg" style={{ fontWeight: 800 }}>Plus</p>
+              <div className="text-right">
+                <p className="rd-display text-lg" style={{ fontWeight: 800, color: VERDE }}>{fmtARS(precioPlusTotal)}</p>
+                <p style={{ fontSize: 10, color: "#9BA0BC" }}>por mes</p>
+              </div>
+            </div>
+            <ul className="flex flex-col gap-1.5 mt-3">
+              {["Todo lo de Free", "Informes con IA ilimitados", "Planificador de salidas con IA", "Solicitudes de familias ilimitadas", "Verificación express (24 hs)", "Estadísticas de tu perfil"].map((f) => (
+                <li key={f} className="text-sm flex items-start gap-2" style={{ color: "#3C4368" }}>
+                  <Check size={14} color={VERDE} style={{ flexShrink: 0, marginTop: 3 }} />{f}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-3 pt-3" style={{ borderTop: "1px solid #F0F1F9" }}>
+              <Checkbox checked={seguroPlusEfectivo} disabled={seguroPropio} onChange={() => setSeguroPlus(!seguroPlus)}>
+                Sumar seguro de responsabilidad civil <span style={{ color: "#9BA0BC" }}>(+{fmtARS(9900)}/mes)</span>
+              </Checkbox>
+            </div>
+            <button onClick={() => elegirPlanOnboarding("plus")}
+              className="w-full rounded-2xl py-3 font-bold text-sm mt-3" style={{ background: CORAL, color: "#fff" }}>
+              Elegir Plus
+            </button>
+          </div>
+
+          {/* PRO */}
+          <div className="rounded-2xl p-4" style={{ background: "#fff", border: "1px solid #E4E2D8" }}>
+            <div className="flex items-baseline justify-between">
+              <p className="rd-display text-lg" style={{ fontWeight: 800 }}>Pro</p>
+              <div className="text-right">
+                <p className="rd-display text-lg" style={{ fontWeight: 800, color: VERDE }}>{fmtARS(precioProTotal)}</p>
+                <p style={{ fontSize: 10, color: "#9BA0BC" }}>por mes</p>
+              </div>
+            </div>
+            <ul className="flex flex-col gap-1.5 mt-3">
+              {["Todo lo de Plus", "Video de presentación en tu perfil", "Agenda y recordatorios de salidas", "Exportación de informes para obras sociales", "Reseñas destacadas", "Soporte prioritario", "Antecedentes penales sin costo extra"].map((f) => (
+                <li key={f} className="text-sm flex items-start gap-2" style={{ color: "#3C4368" }}>
+                  <Check size={14} color={VERDE} style={{ flexShrink: 0, marginTop: 3 }} />{f}
+                </li>
+              ))}
+            </ul>
+            <button type="button" onClick={() => setAntecedentesAdjuntados(!antecedentesAdjuntados)}
+              className="rounded-xl px-3 py-2.5 text-xs font-semibold flex items-center gap-2 justify-center w-full mt-2"
+              style={antecedentesAdjuntados
+                ? { background: "#DFF3F1", color: VERDE, border: "1px solid " + VERDE }
+                : { background: "#fff", border: "1px solid " + VERDE, color: VERDE }}>
+              {antecedentesAdjuntados ? <FileCheck size={14} /> : <Upload size={14} />}
+              {antecedentesAdjuntados ? "certificado-antecedentes.pdf adjuntado" : "Adjuntar certificado de antecedentes penales"}
+            </button>
+            <div className="mt-3 pt-3" style={{ borderTop: "1px solid #F0F1F9" }}>
+              <Checkbox checked={seguroProEfectivo} disabled={seguroPropio} onChange={() => setSeguroPro(!seguroPro)}>
+                Sumar seguro de responsabilidad civil <span style={{ color: "#9BA0BC" }}>(+{fmtARS(9900)}/mes)</span>
+              </Checkbox>
+            </div>
+            <button onClick={() => elegirPlanOnboarding("pro")}
+              className="w-full rounded-2xl py-3 font-bold text-sm mt-3" style={{ background: "#fff", border: "1px solid " + VERDE, color: VERDE }}>
+              Elegir Pro
+            </button>
+          </div>
+
+          {/* INSTITUCIÓN */}
+          <div className="rounded-2xl p-5" style={{ background: NAVY }}>
+            <div className="flex items-center gap-2">
+              <Building2 size={20} color="#fff" />
+              <p className="rd-display text-base" style={{ fontWeight: 800, color: "#fff" }}>Institución</p>
+            </div>
+            <p className="text-sm mt-2" style={{ color: "#B9BEDC" }}>
+              Cuentas para todo el staff, informes centralizados con supervisión, exportación por obra social y perfil institucional.
+            </p>
+            <p className="text-xs mt-2 font-bold" style={{ color: "#fff" }}>Desde {fmtARS(150000)}/mes · hasta 10 ATs</p>
+            <button onClick={() => avisar("Te contactamos en 24 hs (demo)")}
+              className="mt-3 rounded-full px-5 py-2.5 text-sm font-bold" style={{ background: "#fff", color: NAVY }}>
+              Hablar con nosotros
+            </button>
+          </div>
+
+          {/* SEGURO PROPIO (global) */}
+          <div className="rounded-2xl p-4" style={{ background: "#fff", border: "1px solid #E4E2D8" }}>
+            <Checkbox checked={seguroPropio} onChange={() => setSeguroPropio(!seguroPropio)}>
+              <span className="font-semibold">Ya tengo seguro propio</span>
+              <p className="text-xs mt-0.5" style={{ color: GRIS }}>Destilda el addon de seguro en Plus y Pro y descuenta {fmtARS(9900)} del precio mostrado.</p>
+            </Checkbox>
+            {seguroPropio && (
+              <button type="button" onClick={() => setPolizaAdjuntada(!polizaAdjuntada)}
+                className="mt-3 rounded-xl px-3 py-3 text-sm font-semibold w-full flex items-center gap-2 justify-center"
+                style={polizaAdjuntada
+                  ? { background: "#DFF3F1", color: VERDE, border: "1px solid " + VERDE }
+                  : { background: "#fff", border: "1px solid " + VERDE, color: VERDE }}>
+                {polizaAdjuntada ? <FileCheck size={16} /> : <Upload size={16} />}
+                {polizaAdjuntada ? "comprobante-poliza.pdf adjuntado" : "Adjuntar comprobante de tu póliza"}
+              </button>
+            )}
+          </div>
+
+          <p className="text-xs text-center px-4" style={{ color: "#9BA0BC" }}>
+            Suscripción vía MercadoPago. Cancelás cuando quieras. La verificación de certificados es gratuita en todos los planes.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4 mt-5">
+          <CardSeccion titulo="Resumen de tu compra">
+            <div className="flex items-center justify-between text-sm">
+              <span style={{ color: "#3C4368" }}>Plan {checkoutOnboarding.nombre}</span>
+              <span className="font-semibold">{fmtARS(checkoutOnboarding.precioBase)}/mes</span>
+            </div>
+            {checkoutOnboarding.seguroIncluido && (
+              <div className="flex items-center justify-between text-sm">
+                <span style={{ color: "#3C4368" }}>Seguro de responsabilidad civil</span>
+                <span className="font-semibold">+{fmtARS(9900)}/mes</span>
+              </div>
+            )}
+            {seguroPropio && (
+              <div className="flex items-center justify-between text-sm">
+                <span style={{ color: "#3C4368" }}>Seguro propio</span>
+                <span className="font-semibold" style={{ color: VERDE }}>Sin cargo</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between pt-3" style={{ borderTop: "1px solid #F0F1F9" }}>
+              <span className="text-sm font-bold">Total</span>
+              <span className="rd-display text-lg" style={{ fontWeight: 800, color: VERDE }}>{fmtARS(checkoutOnboarding.total)}/mes</span>
+            </div>
+          </CardSeccion>
+
+          <div className="rounded-2xl p-4 flex items-center gap-3" style={{ background: "#F0F1F9" }}>
+            <CreditCard size={20} color={NAVY} />
+            <p className="text-xs" style={{ color: "#3C4368" }}>Vas a pagar de forma segura con MercadoPago. Cancelás cuando quieras.</p>
+          </div>
+
+          <BotonPrimario color={VERDE} icon={CreditCard} onClick={() => setPantalla("registroAT")}>
+            Confirmar y pagar con MercadoPago
+          </BotonPrimario>
+        </div>
+      )}
+    </div>
+  );
+
+  /* ================================================================ */
   /*  PANTALLA: REGISTRO AT                                           */
   /* ================================================================ */
 
   const RegistroAT = (
     <div className="px-4 pb-10">
       <div className="pt-5 flex items-center gap-3">
-        <button onClick={() => setPantalla("bienvenida")} className="rounded-full p-2" style={{ background: "#fff", border: "1px solid #E4E2D8" }} aria-label="Volver">
+        <button onClick={() => setPantalla("planesOnboarding")} className="rounded-full p-2" style={{ background: "#fff", border: "1px solid #E4E2D8" }} aria-label="Volver">
           <ChevronLeft size={18} />
         </button>
         <div>
@@ -781,6 +1023,13 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
           <h1 className="rd-display text-xl" style={{ fontWeight: 800 }}>Creá tu perfil profesional</h1>
         </div>
       </div>
+
+      {planOnboarding && (
+        <div className="flex items-center gap-1.5 mt-3 text-xs font-semibold px-3 py-1.5 rounded-full w-fit" style={{ background: "#DFF3F1", color: VERDE }}>
+          <Crown size={12} />
+          Plan {planOnboarding === "free" ? "Free" : planOnboarding === "plus" ? "Plus" : "Pro"} elegido
+        </div>
+      )}
 
       <div className="flex flex-col gap-4 mt-5">
         <CardSeccion titulo="Tu cuenta">
@@ -858,7 +1107,11 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
           if (regAT.password.length < 6) { setErrorAuth("La contraseña debe tener al menos 6 caracteres."); return; }
           if (regAT.poblaciones.length === 0) { setErrorAuth("Elegí al menos una población."); return; }
           setErrorAuth("");
-          const ok = await registrarse("at", regAT);
+          const ok = await registrarse("at", regAT, {
+            plan: planOnboarding || "free",
+            seguroIncluido: planOnboarding === "free" ? false : !!checkoutOnboarding?.seguroIncluido,
+            seguroPropio,
+          });
           if (ok) setTab("salidas");
         }}>
           {cargandoAuth ? <Loader2 size={16} className="animate-spin" /> : "Crear mi cuenta"}
@@ -2409,6 +2662,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
 
   if (pantalla === "bienvenida") contenido = Bienvenida;
   else if (pantalla === "login") contenido = Login;
+  else if (pantalla === "planesOnboarding") contenido = PlanesOnboarding;
   else if (pantalla === "registroAT") contenido = RegistroAT;
   else if (pantalla === "registroFam") contenido = RegistroFam;
   else if (rol === "at") {
