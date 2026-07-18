@@ -8,6 +8,9 @@ import {
   LogOut, Loader2,
 } from "lucide-react";
 import { supabase, errorAuthEnEspanol } from "./lib/supabase.js";
+import { APIProvider, Map as GoogleMap, AdvancedMarker } from "@vis.gl/react-google-maps";
+
+const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
 /* ------------------------------------------------------------------ */
 /*  Ronda — prototipo completo: registro por rol + app AT + app familia */
@@ -75,17 +78,45 @@ const PROVINCIAS = {
   "Tucumán": ["San Miguel de Tucumán", "Yerba Buena"],
 };
 const ZONAS = Object.values(PROVINCIAS).flat();
-const PROVINCIA_DE = Object.fromEntries(
-  Object.entries(PROVINCIAS).flatMap(([prov, ciudades]) => ciudades.map((c) => [c, prov]))
-);
-/* distancias aproximadas (km) desde CABA, para comparar zonas de distinta provincia
-   sin necesitar coordenadas geográficas reales */
-const DIST_PROVINCIA_KM = {
-  "Córdoba": 700, "Santa Fe": 300, "Mendoza": 1050, "Tucumán": 1240, "Neuquén": 1150,
-  "Catamarca": 1150, "Chaco": 1000, "Chubut": 1780, "Corrientes": 880, "Entre Ríos": 470,
-  "Formosa": 1170, "Jujuy": 1600, "La Pampa": 600, "La Rioja": 1150, "Misiones": 1030,
-  "Río Negro": 1630, "Salta": 1490, "San Juan": 1140, "San Luis": 800, "Santa Cruz": 2600,
-  "Santiago del Estero": 1040, "Tierra del Fuego": 3050,
+
+/* coordenadas reales (lat, lng) de cada ciudad/barrio, para el mapa de Google */
+const COORDS_REALES = {
+  "Palermo": [-34.5875, -58.4205], "Recoleta": [-34.5875, -58.3931], "Caballito": [-34.6178, -58.4413],
+  "Belgrano": [-34.5627, -58.4583], "San Telmo": [-34.6212, -58.3731], "Villa Urquiza": [-34.5751, -58.4864],
+  "Flores": [-34.6289, -58.4633], "San Isidro": [-34.4708, -58.5074], "Vicente López": [-34.5267, -58.4772],
+  "La Plata": [-34.9215, -57.9545], "Mar del Plata": [-38.0055, -57.5426], "Bahía Blanca": [-38.7183, -62.2663],
+  "San Fernando del Valle de Catamarca": [-28.4696, -65.7852],
+  "Resistencia": [-27.4512, -58.9867],
+  "Comodoro Rivadavia": [-45.8641, -67.4966], "Trelew": [-43.2489, -65.3051],
+  "Córdoba Capital": [-31.4201, -64.1888], "Villa Carlos Paz": [-31.4241, -64.4978], "Río Cuarto": [-33.1232, -64.3496],
+  "Corrientes Capital": [-27.4692, -58.8306],
+  "Paraná": [-31.7333, -60.5238], "Concordia": [-31.3928, -58.0209],
+  "Formosa Capital": [-26.1775, -58.1781],
+  "San Salvador de Jujuy": [-24.1858, -65.2995],
+  "Santa Rosa": [-36.6167, -64.2833],
+  "La Rioja Capital": [-29.4130, -66.8506],
+  "Mendoza Capital": [-32.8895, -68.8458], "Godoy Cruz": [-32.9264, -68.8508],
+  "Posadas": [-27.3671, -55.8961], "Puerto Iguazú": [-25.5952, -54.5734],
+  "Neuquén Capital": [-38.9516, -68.0591], "Plottier": [-38.9667, -68.2333],
+  "Bariloche": [-41.1335, -71.3103], "Viedma": [-40.8135, -63.0000],
+  "Salta Capital": [-24.7859, -65.4117],
+  "San Juan Capital": [-31.5375, -68.5364],
+  "San Luis Capital": [-33.2950, -66.3356],
+  "Río Gallegos": [-51.6230, -69.2168],
+  "Rosario": [-32.9468, -60.6393], "Santa Fe Capital": [-31.6333, -60.7000],
+  "Santiago del Estero Capital": [-27.7951, -64.2615],
+  "Ushuaia": [-54.8019, -68.3030], "Río Grande": [-53.7877, -67.7085],
+  "San Miguel de Tucumán": [-26.8241, -65.2226], "Yerba Buena": [-26.8167, -65.3167],
+};
+
+/* distancia real entre dos coordenadas (fórmula de Haversine) */
+const distanciaKm = (a, b) => {
+  const R = 6371;
+  const dLat = (b[0] - a[0]) * Math.PI / 180;
+  const dLng = (b[1] - a[1]) * Math.PI / 180;
+  const lat1 = a[0] * Math.PI / 180, lat2 = b[0] * Math.PI / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 };
 const ZonaOptions = () => (
   <>
@@ -209,6 +240,9 @@ const CUD_ACTIVIDADES_INICIALES = [
 ];
 
 /* ---------- piezas ---------- */
+
+const MapsProvider = ({ children }) =>
+  GOOGLE_MAPS_KEY ? <APIProvider apiKey={GOOGLE_MAPS_KEY}>{children}</APIProvider> : <>{children}</>;
 
 function Avatar({ nombre, size = 32, destacado = false }) {
   const ini = nombre.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
@@ -913,55 +947,16 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
     (bZona === "Todas" || a.zona === bZona) && (bPob === "Todas" || a.poblaciones.includes(bPob))
   );
 
-  /* posiciones aproximadas en el lienzo estilizado (no georreferenciadas),
-     agrupadas por ciudad dentro de un esquema que sigue, a grandes rasgos,
-     la posición relativa real de cada provincia dentro del país */
-  const COORDS = {
-    "San Salvador de Jujuy": [185, 12], "Salta Capital": [200, 30],
-    "Formosa Capital": [290, 35], "Posadas": [350, 55], "Puerto Iguazú": [365, 40],
-    "Resistencia": [265, 60], "San Miguel de Tucumán": [210, 55], "Yerba Buena": [200, 65],
-    "San Fernando del Valle de Catamarca": [160, 80], "Santiago del Estero Capital": [235, 90],
-    "Corrientes Capital": [310, 100], "La Rioja Capital": [135, 115], "San Juan Capital": [100, 140],
-    "Córdoba Capital": [195, 172], "Villa Carlos Paz": [178, 168], "Río Cuarto": [205, 195],
-    "Rosario": [270, 135], "Santa Fe Capital": [255, 115], "Paraná": [300, 150], "Concordia": [320, 165],
-    "Mendoza Capital": [85, 210], "Godoy Cruz": [95, 222], "San Luis Capital": [130, 205],
-    "Santa Rosa": [175, 250],
-    "Palermo": [300, 245], "Recoleta": [320, 250], "Caballito": [285, 265], "Belgrano": [305, 225],
-    "San Telmo": [325, 270], "Villa Urquiza": [275, 255], "Flores": [280, 280],
-    "San Isidro": [300, 210], "Vicente López": [312, 215], "La Plata": [335, 300],
-    "Mar del Plata": [320, 335], "Bahía Blanca": [250, 310],
-    "Neuquén Capital": [150, 290], "Plottier": [160, 297], "Bariloche": [165, 325], "Viedma": [200, 335],
-    "Comodoro Rivadavia": [155, 372], "Trelew": [170, 362], "Río Gallegos": [140, 398],
-    "Ushuaia": [150, 412], "Río Grande": [165, 402],
-  };
-  const PROVINCIA_LABEL_POS = {
-    "Jujuy": [185, 5], "Salta": [205, 22], "Formosa": [290, 25], "Misiones": [352, 30],
-    "Chaco": [265, 48], "Tucumán": [205, 42], "Catamarca": [155, 65],
-    "Santiago del Estero": [230, 78], "Corrientes": [305, 85], "La Rioja": [128, 100],
-    "San Juan": [95, 125], "Córdoba": [190, 155], "Santa Fe": [255, 100], "Entre Ríos": [300, 135],
-    "Mendoza": [80, 190], "San Luis": [125, 190], "La Pampa": [170, 235],
-    "Buenos Aires (CABA, GBA e interior)": [300, 195],
-    "Neuquén": [145, 275], "Río Negro": [165, 310], "Chubut": [150, 355],
-    "Santa Cruz": [130, 385], "Tierra del Fuego": [145, 400],
-  };
-  const userPos = COORDS[regFam.zona] || COORDS["Palermo"];
-  const distKm = (pos, zonaAT) => {
-    const base = "Buenos Aires (CABA, GBA e interior)";
-    const provFam = PROVINCIA_DE[regFam.zona] || base;
-    const provAT = PROVINCIA_DE[zonaAT] || base;
-    if (provFam !== provAT) {
-      const kmFam = provFam === base ? 0 : (DIST_PROVINCIA_KM[provFam] || 500);
-      const kmAT = provAT === base ? 0 : (DIST_PROVINCIA_KM[provAT] || 500);
-      const total = kmFam === 0 ? kmAT : kmAT === 0 ? kmFam : kmFam + kmAT;
-      return total.toString();
-    }
-    const d = Math.sqrt((pos[0] - userPos[0]) ** 2 + (pos[1] - userPos[1]) ** 2) * 0.022;
+  const userPos = COORDS_REALES[regFam.zona] || COORDS_REALES["Palermo"];
+  const distKm = (posAT) => {
+    const d = distanciaKm(userPos, posAT);
     return (Math.round(Math.max(d, 0.3) * 10) / 10).toString().replace(".", ",");
   };
+  /* pequeño desplazamiento para que ATs de la misma ciudad no queden pin sobre pin */
   const pinPos = (a, i) => {
-    const base = COORDS[a.zona] || [200, 200];
+    const base = COORDS_REALES[a.zona] || COORDS_REALES["Palermo"];
     const prev = atsFiltrados.slice(0, i).filter((x) => x.zona === a.zona).length;
-    return [base[0] + prev * 26, base[1] + prev * 14];
+    return [base[0] + prev * 0.004, base[1] + prev * 0.004];
   };
 
   const BuscarATs = (
@@ -1022,46 +1017,38 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
 
       {vistaMapa ? (
         <div>
-          <div className="rd-card rounded-2xl overflow-hidden">
-            <svg viewBox="0 0 400 430" width="100%" role="img" aria-label="Mapa de acompañantes cercanos">
-              <rect width="400" height="430" fill="#EAEBF5" />
-              {[40, 80, 120, 160, 200, 240, 280, 320].map((x) => (
-                <line key={"v" + x} x1={x} y1="0" x2={x} y2="430" stroke="#DFE1F0" strokeWidth="1.5" />
-              ))}
-              {[40, 90, 140, 190, 240, 290, 340, 390].map((y) => (
-                <line key={"h" + y} x1="0" y1={y} x2="400" y2={y} stroke="#DFE1F0" strokeWidth="1.5" />
-              ))}
-              <line x1="0" y1="60" x2="340" y2="420" stroke="#D3D5E8" strokeWidth="5" />
-              <line x1="30" y1="0" x2="330" y2="430" stroke="#D3D5E8" strokeWidth="5" />
-              <path d="M355,0 L400,0 L400,430 L370,430 C360,300 358,150 355,0 Z" fill="#CBDDF5" />
-              <text x="385" y="215" fontSize="9" fill="#8FA3C9" transform="rotate(90 385 215)">Océano Atlántico</text>
-              <ellipse cx="195" cy="150" rx="40" ry="26" fill="#D6F0E7" />
-              <ellipse cx="300" cy="290" rx="30" ry="20" fill="#D6F0E7" />
-              <ellipse cx="90" cy="255" rx="24" ry="16" fill="#D6F0E7" />
-              {Object.entries(PROVINCIA_LABEL_POS).map(([prov, [x, y]]) => (
-                <text key={prov} x={x} y={y} fontSize="9" fontWeight="bold" fill="#9BA0BC" textAnchor="middle">{prov}</text>
-              ))}
-
-              {/* vos */}
-              <circle cx={userPos[0] + 16} cy={userPos[1] + 18} r="15" fill="#3B6FB5" opacity="0.18" />
-              <circle cx={userPos[0] + 16} cy={userPos[1] + 18} r="7" fill="#3B6FB5" stroke="#fff" strokeWidth="2.5" />
-              <text x={userPos[0] + 16} y={userPos[1] + 44} fontSize="9" fontWeight="bold" fill="#3B6FB5" textAnchor="middle">Vos</text>
-
-              {/* pins de ATs */}
-              {atsFiltrados.map((a, i) => {
-                const [x, y] = pinPos(a, i);
-                const c = a.verificado ? VERDE : AMBAR;
-                const ini = a.nombre.split(" ").map((p) => p[0]).join("").slice(0, 2);
-                const sel = pinSel === i;
-                return (
-                  <g key={a.nombre} onClick={() => setPinSel(i)} style={{ cursor: "pointer" }}>
-                    <path d={`M${x},${y + 12} L${x - 5},${y + 4} L${x + 5},${y + 4} Z`} fill={c} />
-                    <circle cx={x} cy={y - 6} r={sel ? 15 : 13} fill={c} stroke="#fff" strokeWidth={sel ? 3 : 2} />
-                    <text x={x} y={y - 2.5} fontSize="9.5" fontWeight="bold" fill="#fff" textAnchor="middle">{ini}</text>
-                  </g>
-                );
-              })}
-            </svg>
+          <div className="rd-card rounded-2xl overflow-hidden" style={{ height: 320 }}>
+            {GOOGLE_MAPS_KEY ? (
+              <GoogleMap
+                defaultCenter={{ lat: userPos[0], lng: userPos[1] }}
+                defaultZoom={12}
+                mapId="DEMO_MAP_ID"
+                gestureHandling="greedy"
+                disableDefaultUI
+                style={{ width: "100%", height: "100%" }}
+              >
+                <AdvancedMarker position={{ lat: userPos[0], lng: userPos[1] }} title="Vos">
+                  <div className="rounded-full" style={{ width: 16, height: 16, background: "#3B6FB5", border: "3px solid #fff", boxShadow: "0 1px 4px rgba(0,0,0,0.35)" }} />
+                </AdvancedMarker>
+                {atsFiltrados.map((a, i) => {
+                  const [lat, lng] = pinPos(a, i);
+                  const c = a.verificado ? VERDE : AMBAR;
+                  const sel = pinSel === i;
+                  return (
+                    <AdvancedMarker key={a.nombre} position={{ lat, lng }} onClick={() => setPinSel(i)} title={a.nombre}>
+                      <div className="rounded-full flex items-center justify-center text-xs font-bold"
+                        style={{ width: sel ? 34 : 28, height: sel ? 34 : 28, background: c, color: "#fff", border: "2.5px solid #fff", boxShadow: "0 1px 4px rgba(0,0,0,0.35)", cursor: "pointer" }}>
+                        {a.nombre.split(" ").map((p) => p[0]).join("").slice(0, 2)}
+                      </div>
+                    </AdvancedMarker>
+                  );
+                })}
+              </GoogleMap>
+            ) : (
+              <div className="flex items-center justify-center h-full text-center px-6" style={{ color: GRIS }}>
+                <p className="text-xs">Mapa no disponible: falta configurar Google Maps.</p>
+              </div>
+            )}
           </div>
 
           {pinSel !== null && atsFiltrados[pinSel] ? (
@@ -1073,7 +1060,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
                   {atsFiltrados[pinSel].verificado && <BadgeCheck size={14} color={VERDE} />}
                 </div>
                 <p className="text-xs" style={{ color: GRIS }}>
-                  {atsFiltrados[pinSel].zona} · a ~{distKm(pinPos(atsFiltrados[pinSel], pinSel), atsFiltrados[pinSel].zona)} km de tu zona
+                  {atsFiltrados[pinSel].zona} · a ~{distKm(pinPos(atsFiltrados[pinSel], pinSel))} km de tu zona
                 </p>
               </div>
               <button onClick={() => { setAtSel(pinSel); setPinSel(null); setEscribiendo(false); }}
@@ -1102,7 +1089,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
                       : <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: "#FCF0D8", color: AMBAR }}>Verificación en curso</span>}
                   </div>
                   <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: GRIS }}>
-                    <MapPin size={12} />{a.zona} · a ~{distKm(pinPos(a, i), a.zona)} km · {a.exp}
+                    <MapPin size={12} />{a.zona} · a ~{distKm(pinPos(a, i))} km · {a.exp}
                   </p>
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {a.poblaciones.map((p) => <ChipPob key={p} poblacion={p} />)}
@@ -1418,10 +1405,11 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
   );
 
   const pinPosSalida = (s, i) => {
-    const base = COORDS[s.zona] || [200, 200];
+    const base = COORDS_REALES[s.zona] || COORDS_REALES["Palermo"];
     const prev = filtradas.slice(0, i).filter((x) => x.zona === s.zona).length;
-    return [base[0] + prev * 26, base[1] + prev * 14];
+    return [base[0] + prev * 0.004, base[1] + prev * 0.004];
   };
+  const centroSalidas = COORDS_REALES[regAT.zona] || COORDS_REALES["Palermo"];
 
   const MapaSalidas = (
     <div className="px-4 pb-28">
@@ -1453,39 +1441,32 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
         </div>
       )}
 
-      <div className="rd-card rounded-2xl overflow-hidden">
-        <svg viewBox="0 0 400 430" width="100%" role="img" aria-label="Mapa de salidas activas">
-          <rect width="400" height="430" fill="#EAEBF5" />
-          {[40, 80, 120, 160, 200, 240, 280, 320].map((x) => (
-            <line key={"v" + x} x1={x} y1="0" x2={x} y2="430" stroke="#DFE1F0" strokeWidth="1.5" />
-          ))}
-          {[40, 90, 140, 190, 240, 290, 340, 390].map((y) => (
-            <line key={"h" + y} x1="0" y1={y} x2="400" y2={y} stroke="#DFE1F0" strokeWidth="1.5" />
-          ))}
-          <line x1="0" y1="60" x2="340" y2="420" stroke="#D3D5E8" strokeWidth="5" />
-          <line x1="30" y1="0" x2="330" y2="430" stroke="#D3D5E8" strokeWidth="5" />
-          <path d="M355,0 L400,0 L400,430 L370,430 C360,300 358,150 355,0 Z" fill="#CBDDF5" />
-          <text x="385" y="215" fontSize="9" fill="#8FA3C9" transform="rotate(90 385 215)">Océano Atlántico</text>
-          <ellipse cx="195" cy="150" rx="40" ry="26" fill="#D6F0E7" />
-          <ellipse cx="300" cy="290" rx="30" ry="20" fill="#D6F0E7" />
-          <ellipse cx="90" cy="255" rx="24" ry="16" fill="#D6F0E7" />
-          {Object.entries(PROVINCIA_LABEL_POS).map(([prov, [x, y]]) => (
-            <text key={prov} x={x} y={y} fontSize="9" fontWeight="bold" fill="#9BA0BC" textAnchor="middle">{prov}</text>
-          ))}
-
-          {filtradas.map((s, i) => {
-            const [x, y] = pinPosSalida(s, i);
-            const c = POB_COLOR[s.poblacion];
-            const sel = pinSelSalida === i;
-            return (
-              <g key={s.id} onClick={() => setPinSelSalida(i)} style={{ cursor: "pointer" }}>
-                <path d={`M${x},${y + 12} L${x - 5},${y + 4} L${x + 5},${y + 4} Z`} fill={c} />
-                <circle cx={x} cy={y - 6} r={sel ? 15 : 13} fill={c} stroke="#fff" strokeWidth={sel ? 3 : 2} />
-                <circle cx={x} cy={y - 6} r="3" fill="#fff" />
-              </g>
-            );
-          })}
-        </svg>
+      <div className="rd-card rounded-2xl overflow-hidden" style={{ height: 320 }}>
+        {GOOGLE_MAPS_KEY ? (
+          <GoogleMap
+            defaultCenter={{ lat: centroSalidas[0], lng: centroSalidas[1] }}
+            defaultZoom={12}
+            mapId="DEMO_MAP_ID"
+            gestureHandling="greedy"
+            disableDefaultUI
+            style={{ width: "100%", height: "100%" }}
+          >
+            {filtradas.map((s, i) => {
+              const [lat, lng] = pinPosSalida(s, i);
+              const c = POB_COLOR[s.poblacion];
+              const sel = pinSelSalida === i;
+              return (
+                <AdvancedMarker key={s.id} position={{ lat, lng }} onClick={() => setPinSelSalida(i)} title={s.titulo}>
+                  <div className="rounded-full" style={{ width: sel ? 20 : 16, height: sel ? 20 : 16, background: c, border: "2.5px solid #fff", boxShadow: "0 1px 4px rgba(0,0,0,0.35)", cursor: "pointer" }} />
+                </AdvancedMarker>
+              );
+            })}
+          </GoogleMap>
+        ) : (
+          <div className="flex items-center justify-center h-full text-center px-6" style={{ color: GRIS }}>
+            <p className="text-xs">Mapa no disponible: falta configurar Google Maps.</p>
+          </div>
+        )}
       </div>
 
       {pinSelSalida !== null && filtradas[pinSelSalida] ? (
@@ -2434,41 +2415,43 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
   }
 
   return (
-    <div className="rd-root" style={{ background: "#DBDDEF", height: "100%", width: "100%" }}>
-      <style>{CSS}</style>
-      <div className="mx-auto max-w-md relative" style={{ background: PAPEL, minHeight: "100%", height: "100%", overflowY: "auto" }}>
-        {toast && (
-          <div className="absolute left-1/2 z-20 px-4 py-2.5 rounded-full text-sm font-bold"
-            style={{ top: 14, transform: "translateX(-50%)", background: TINTA, color: "#fff", whiteSpace: "nowrap" }}>
-            {toast}
+    <MapsProvider>
+      <div className="rd-root" style={{ background: "#DBDDEF", height: "100%", width: "100%" }}>
+        <style>{CSS}</style>
+        <div className="mx-auto max-w-md relative" style={{ background: PAPEL, minHeight: "100%", height: "100%", overflowY: "auto" }}>
+          {toast && (
+            <div className="absolute left-1/2 z-20 px-4 py-2.5 rounded-full text-sm font-bold"
+              style={{ top: 14, transform: "translateX(-50%)", background: TINTA, color: "#fff", whiteSpace: "nowrap" }}>
+              {toast}
+            </div>
+          )}
+
+          <div style={{ minHeight: pantalla === "app" ? "calc(100vh - 76px)" : "100vh", position: "relative" }}>
+            {contenido}
           </div>
-        )}
 
-        <div style={{ minHeight: pantalla === "app" ? "calc(100vh - 76px)" : "100vh", position: "relative" }}>
-          {contenido}
+          {pantalla === "app" && barras && (
+            <nav className="fixed bottom-0 flex justify-around items-center"
+              style={{ width: "100%", maxWidth: "28rem", left: "50%", transform: "translateX(-50%)", height: 76, background: "#fff", borderTop: "1px solid #E4E2D8", zIndex: 10 }}>
+              {barras.map((t) => {
+                const activo = tabActiva === t.id && !enDetalle;
+                const Icon = t.icon;
+                return (
+                  <button key={t.id}
+                    onClick={() => {
+                      if (rol === "at") { setTab(t.id); setDetalleId(null); setVerPlanes(false); setVerCud(false); setVerAdminCud(false); setVerEnCurso(false); setPinSelSalida(null); if (t.id !== "chats") setChatId(null); }
+                      else { setTabFam(t.id); setAtSel(null); setEscribiendo(false); setVerCud(false); setVerAdminCud(false); setPinSel(null); }
+                    }}
+                    className="flex flex-col items-center gap-1 px-3 py-2" aria-label={t.label}>
+                    <Icon size={22} color={activo ? CORAL : "#9BA0BC"} strokeWidth={activo ? 2.4 : 2} />
+                    <span className="text-xs font-semibold" style={{ color: activo ? CORAL : "#9BA0BC" }}>{t.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          )}
         </div>
-
-        {pantalla === "app" && barras && (
-          <nav className="fixed bottom-0 flex justify-around items-center"
-            style={{ width: "100%", maxWidth: "28rem", left: "50%", transform: "translateX(-50%)", height: 76, background: "#fff", borderTop: "1px solid #E4E2D8", zIndex: 10 }}>
-            {barras.map((t) => {
-              const activo = tabActiva === t.id && !enDetalle;
-              const Icon = t.icon;
-              return (
-                <button key={t.id}
-                  onClick={() => {
-                    if (rol === "at") { setTab(t.id); setDetalleId(null); setVerPlanes(false); setVerCud(false); setVerAdminCud(false); setVerEnCurso(false); setPinSelSalida(null); if (t.id !== "chats") setChatId(null); }
-                    else { setTabFam(t.id); setAtSel(null); setEscribiendo(false); setVerCud(false); setVerAdminCud(false); setPinSel(null); }
-                  }}
-                  className="flex flex-col items-center gap-1 px-3 py-2" aria-label={t.label}>
-                  <Icon size={22} color={activo ? CORAL : "#9BA0BC"} strokeWidth={activo ? 2.4 : 2} />
-                  <span className="text-xs font-semibold" style={{ color: activo ? CORAL : "#9BA0BC" }}>{t.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        )}
       </div>
-    </div>
+    </MapsProvider>
   );
 }
