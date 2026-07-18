@@ -35,9 +35,10 @@ const TINTA = "#242B54";
 const GRIS = "#767C9B";
 const AMBAR = "#F2A71B";
 
-/* logo oficial de la marca (public/logo.png), archivo original sin editar */
-const LogoRondas = ({ size = 44 }) => (
-  <img src="/logo.png" width={size} height={size} alt="rondas — Red de acompañamiento terapéutico" style={{ objectFit: "contain" }} />
+/* logo oficial de la marca, sin fondo blanco. "blanco" para fondos navy/oscuros */
+const LogoRondas = ({ size = 44, variant = "color" }) => (
+  <img src={variant === "blanco" ? "/logo-blanco.png" : "/logo-color.png"} width={size} height={size}
+    alt="rondas — Red de acompañamiento terapéutico" style={{ objectFit: "contain" }} />
 );
 
 export const RONDAS_BRAND = { VERDE, CORAL, NAVY, PAPEL, TINTA, GRIS, AMBAR };
@@ -678,7 +679,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
   const Bienvenida = (
     <div className="px-5 flex flex-col" style={{ minHeight: "100%" }}>
       <div className="flex flex-col items-center text-center" style={{ paddingTop: 56 }}>
-        <img src="/logo-full-transparent.png" width={170} height={170} alt="rondas — Red de acompañamiento terapéutico" style={{ objectFit: "contain" }} />
+        <img src="/logo-completo.png" width={170} height={170} alt="rondas — Red de acompañamiento terapéutico" style={{ objectFit: "contain" }} />
         <p className="text-sm mt-2 px-6" style={{ color: GRIS }}>
           Salidas compartidas, profesionales verificados.
         </p>
@@ -994,7 +995,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
       <div className="-mx-4 px-5 pt-6 pb-5 mb-4"
         style={{ background: NAVY, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}>
         <div className="flex items-center gap-3">
-          <LogoRondas size={40} />
+          <LogoRondas size={40} variant="blanco" />
           <div>
             <h1 className="rd-display text-xl" style={{ fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>Acompañantes cerca tuyo</h1>
             <p className="text-xs" style={{ color: "#B9BEDC" }}>Certificación revisada · ordenados por cercanía</p>
@@ -1356,7 +1357,7 @@ Si no hay datos sensibles: riesgo false, hallazgos como lista vacía, y version_
     <div className="px-4 pb-28">
       <div className="-mx-4 px-5 pt-6 pb-5 mb-4 flex items-center gap-3"
         style={{ background: NAVY, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}>
-        <LogoRondas size={46} />
+        <LogoRondas size={46} variant="blanco" />
         <div>
           <h1 className="rd-display text-2xl" style={{ fontWeight: 800, color: "#fff", lineHeight: 1.05 }}>rondas</h1>
           <p className="text-xs font-bold" style={{ color: "#4FD1C5" }}>Salidas grupales entre ATs</p>

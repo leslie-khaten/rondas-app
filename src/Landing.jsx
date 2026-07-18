@@ -650,7 +650,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-6 py-16 grid sm:grid-cols-2 md:grid-cols-4 gap-10">
           <div>
             <div className="flex items-center gap-2.5 mb-3">
-              <LogoRondas size={28} />
+              <LogoRondas size={28} variant="blanco" />
             </div>
             <p className="text-xs leading-relaxed" style={{ color: "#8790B3" }}>Red de acompañamiento terapéutico. Prototipo de producto.</p>
           </div>
